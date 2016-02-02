@@ -19,7 +19,7 @@ var room = 0
 var computer_room
 var cafeteria = 'cafeteria';
    
-
+//ssfdsfs
 /*lwip.open("./imageWithRedMarker.png", function(err, image) {
           if (err) throw err
           
