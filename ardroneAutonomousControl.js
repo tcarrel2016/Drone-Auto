@@ -250,7 +250,7 @@ function analyzeBlobsFound() {
             blobsFound.blobs.splice(i,1)
             i--
         }
-        else {
+        else if (blobsFound.blobs[i].links.length > 0) {
             blobsFound.blobs[i].calculateCenter()
             blobsFound.blobs[i].calculateRadiusAndCircularity()
             
@@ -260,7 +260,13 @@ function analyzeBlobsFound() {
         }
     }
     
-    var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
+    if (blobsFound.blobs.length > 0) {
+        var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
+    }
+    else {
+        var center =[320,100]
+        console.log("...")
+    }
     return center
 }
 
@@ -333,6 +339,11 @@ BlobLibrary.prototype.addBlob = function() {
 function Blob() {
     this.links = []
     this.aspects = [5]
+    this.aspects[0] = 320
+    this.aspects[1] = 200
+    this.aspects[2] = 50
+    this.aspects[3] = 3
+    this.aspects[4] = 5
 }
 
 Blob.prototype.addLink = function(x, y) {
@@ -351,8 +362,8 @@ Blob.prototype.calculateCenter = function() {
     X /= this.links.length
     Y /= this.links.length
     
-    aspects[0] = X
-    aspects[1] = Y
+    this.aspects[0] = X
+    this.aspects[1] = Y
 }
 
 Blob.prototype.calculateRadiusAndCircularity = function() {
@@ -362,30 +373,54 @@ Blob.prototype.calculateRadiusAndCircularity = function() {
     var D = 0;
     
     for (var i=0; i<this.links.length; i++) {
-        if (aspects[0] - this.links[i].x > L) {
-            L = aspects[0] - this.links[i].x
+        if (this.aspects[0] - this.links[i].x > L) {
+            L = this.aspects[0] - this.links[i].x
         }
-        if (this.links[i].x - aspects[0] > R) {
-            R = this.links[i].x - aspects[0]
+        if (this.links[i].x - this.aspects[0] > R) {
+            R = this.links[i].x - this.aspects[0]
         }
-        if (aspects[1] - this.links[i].y > U) {
-            U = aspects[1] - this.links[i].y
+        if (this.aspects[1] - this.links[i].y > U) {
+            U = this.aspects[1] - this.links[i].y
         }
-        if (this.links[i].y - aspects[1] > D) {
-            D = links[i].y - aspects[1]
+        if (this.links[i].y - this.aspects[1] > D) {
+            D = this.links[i].y - this.aspects[1]
         }
     }
     
-    aspects[2] = (L+R+U+D) / 4;
+    this.aspects[2] = (L+R+U+D) / 4;
     
-    L = abs(L-aspects[2]);
-    R = abs(R-aspects[2]);
-    U = abs(U-aspects[2]);
-    D = abs(D-aspects[2]);
+    if (L-this.aspects[2] < 0) {
+        L = -1 * (L-this.aspects[2])
+    }
+    else {
+       L = (L-this.aspects[2])
+    }
+    if (R-this.aspects[2] < 0) {
+        R = -1 * (R-this.aspects[2])
+    }
+    else {
+        R = (R-this.aspects[2])
+    }
+    if (U-this.aspects[2] < 0) {
+        U = -1 * (U-this.aspects[2])
+    }
+    else {
+        U = (U-this.aspects[2])
+    }
+    if (D-this.aspects[2] < 0) {
+        D = -1 * (D-this.aspects[2])
+    }
+    else {
+        D = (D-this.aspects[2])
+    }
+//    L = abs(L-aspects[2])
+//    R = abs(R-aspects[2])
+//    U = abs(U-aspects[2])
+//    D = abs(D-aspects[2])
     
-    aspects[3] = (L+R+U+D) / 4;
+    this.aspects[3] = (L+R+U+D) / 4;
     
-    aspects[4] = this.links.length / aspects[2]
+    this.aspects[4] = this.links.length / this.aspects[2]
 }
 
 function Link(x, y) {
