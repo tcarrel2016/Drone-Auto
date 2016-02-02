@@ -413,10 +413,6 @@ Blob.prototype.calculateRadiusAndCircularity = function() {
     else {
         D = (D-this.aspects[2])
     }
-//    L = abs(L-aspects[2])
-//    R = abs(R-aspects[2])
-//    U = abs(U-aspects[2])
-//    D = abs(D-aspects[2])
     
     this.aspects[3] = (L+R+U+D) / 4;
     
