@@ -242,7 +242,14 @@ function checkLinks(image, x, y, direction) {
 }
 
 function analyzeBlobsFound() {
-    var bestCircularity = 10
+    var bestCircularity = [2]       //circularity, blob#
+    bestCircularity[0] = 20
+    bestCircularity[1] = 0
+    
+    var bestDensity = [2]           //density,     blob#
+    bestDensity[0] = 0
+    bestDensity[1] = 0
+    
     var bestBlob = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
@@ -254,13 +261,37 @@ function analyzeBlobsFound() {
             blobsFound.blobs[i].calculateCenter()
             blobsFound.blobs[i].calculateRadiusAndCircularity()
             
-            if (blobsFound.blobs[i].aspects[3] < bestCircularity) {
-                bestBlob = i
+            var circularity = blobsFound.blobs[i].aspects[3]
+            if (circularity < bestCircularity[0]) {
+                bestCircularity[0] = circularity
+                bestCircularity[1] = i
+                //bestBlob = i
+            }
+            
+            var density = blobsFound.blobs[i].aspects[4] / blobsFound.blobs[i].aspects[2]
+            if (density > bestDensity[0]) {
+                bestDensity[0] = density
+                bestDensity[1] = i
             }
         }
     }
     
     if (blobsFound.blobs.length > 0) {
+        if (bestCircularity[1] != bestDensity[1]) {
+            bestBlob = i
+        }
+        else {
+            var score1 = (blobsFound.blobs[bestCircularity[1]].aspects[4] / blobsFound.blobs[bestCircularity[1]].aspects[2]) - bestCircularity[0]
+            var score2 = bestDensity[0] - blobsFound.blobs[bestDensity[1]].aspects[3]
+            
+            if (score1 > score2) {
+                bestBlob = bestCircularity[1]
+            }
+            else {
+                bestBlob = bestDensity[1]
+            }
+        }
+        
         var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
     }
     else {
