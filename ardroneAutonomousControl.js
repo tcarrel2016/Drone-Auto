@@ -9,7 +9,6 @@ var pngImage
 var output
 var markerX = -1
 var markerY = -1
-                            //BGR      r/b > 2.2 && r/g > 1 && r/g < 2.3
 var erosionFactor = 3
 var count = 0
 var skipSize = 5
@@ -36,7 +35,7 @@ var pngStream = client.getPngStream()
 pngStream
 .on("error", console.log)
 .on("data", function(incoming) {
-    if (count < 100) {
+    if (count < 200) {
          processImage(incoming)
         
          client.stop()
@@ -73,7 +72,7 @@ pngStream
          console.log(String(count))
     }
     else {
-        if (count > 100 || count == 100) {
+        if (count > 200 || count == 200) {
             client.stop()
             client.land()
         }
@@ -117,8 +116,9 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {
-            if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {
+            //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //ORANGE
+            //if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {                                                                              //RED
+            if (color.r / color.b > (232/93)-0.75 && color.r / color.b < (232/93)+0.75 && color.r / color.g > (232/172)-0.75 && color.r / color.g < (232/172)+0.75) {     //GREEN
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
@@ -180,7 +180,7 @@ function findBlobs(image) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             
-            if (color.b > 0) {
+            if (color.b > 0 && blobsFound.blobs.length < 7) {
                 blobsFound.addBlob()
                 checkLinks(image, x, y, 0)
             }
@@ -263,21 +263,21 @@ function analyzeBlobsFound() {
             
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
-                bestCircularity[0] = circularity
-                bestCircularity[1] = i
-                //bestBlob = i
+                //bestCircularity[0] = circularity
+                //bestCircularity[1] = i
+                bestBlob = i
             }
             
-            var density = blobsFound.blobs[i].aspects[4] / blobsFound.blobs[i].aspects[2]
+            /*var density = blobsFound.blobs[i].aspects[4] / blobsFound.blobs[i].aspects[2]
             if (density > bestDensity[0]) {
                 bestDensity[0] = density
                 bestDensity[1] = i
-            }
+            }*/
         }
     }
     
     if (blobsFound.blobs.length > 0) {
-        if (bestCircularity[1] != bestDensity[1]) {
+        /*if (bestCircularity[1] != bestDensity[1]) {
             bestBlob = i
         }
         else {
@@ -290,7 +290,7 @@ function analyzeBlobsFound() {
             else {
                 bestBlob = bestDensity[1]
             }
-        }
+        }*/
         
         var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
     }
