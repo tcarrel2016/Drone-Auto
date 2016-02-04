@@ -87,14 +87,12 @@ function processImage(input) {
     pngImage = input
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
-              //console.log("thresholding...")
               image = thresholdImage(image)
-              //console.log("eroding...")
               image = erodeImage(image)
               
-              //console.log("finding marker...")
-              //var marker = findMarker(image)
-              findBlobs(image)
+              //var marker = findMarker(image)      THIS IS THE OLD AVERAGING FUNCTION
+              
+              findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
               var marker = analyzeBlobsFound()
               
               if (marker[0] > -1 && marker[1] > -1) {
@@ -116,9 +114,9 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //ORANGE
+            //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //YELLOW-ORANGE
             //if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {                                                                              //RED
-            if (color.r / color.b > (232/93)-0.75 && color.r / color.b < (232/93)+0.75 && color.r / color.g > (232/172)-0.75 && color.r / color.g < (232/172)+0.75) {     //GREEN
+            if (color.r / color.b > (232/93)-0.75 && color.r / color.b < (232/93)+0.75 && color.r / color.g > (232/172)-0.75 && color.r / color.g < (232/172)+0.75) {     //ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
