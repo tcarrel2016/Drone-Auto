@@ -1,7 +1,12 @@
 //ardroneAutonomousControl.js
 
+//image = 640x360
+//Blob detection
+//No Density
+//Horizontal tracking
+//Vertical tracking
+
 var ardrone = require('ar-drone')
-//var lwip = require('./lwip-master/index.js')
 var jimp = require('./jimp-master/index.js')
 
 var client = ardrone.createClient()
@@ -15,18 +20,6 @@ var skipSize = 5
 var previousX = 0
 
 var blobsFound = new BlobLibrary()
-
-/*lwip.open("./imageWithRedMarker.png", function(err, image) {
-          if (err) throw err
-          
-          console.log("shrinking image...")
-          image.scale(0.5, function(err, shrunken) {
-                      if (err) throw err
-                      
-                      shrunken.writeFile("./ardroneJimpOutput/lwipShrunken.png", "png", ()=>{})
-                      })
-          console.log("done")
-          })*/
 
 client.config("video:video_channel", 0)
 
@@ -44,12 +37,12 @@ pngStream
             if (markerX > 320 + 100) {
                 client.right(0.08)
                 previousX = 1
-                console.log("GO RIGHT")
+                console.log("RIGHT")
             }
             else if (markerX < 320 - 100) {
                 client.left(0.08)
                 previousX = -1
-                console.log("GO LEFT")
+                console.log("LEFT")
             }
             else {
                 if (previousX < 0) {
@@ -58,18 +51,37 @@ pngStream
                 else if (previousX > 0) {
                     client.left(0.1)
                 }
-                console.log("HOVER")
+                console.log("NO X")
                 previousX = 0
             }
-         }
-    else {
-        console.log("HOVER")
-        previousX = 0
-    }
-         
-         count++
-         console.log("#Blobs: " + String(blobsFound.blobs.length))
-         console.log(String(count))
+        }
+    
+        if (markerY > -1 && markerY > -1) {
+            if (markerY > 180 + 50) {
+                client.down(0.08)
+                previousY = 1
+                console.log("DOWN")
+            }
+            else if (markerY < 180 - 50) {
+                client.up(0.08)
+                previousY = -1
+                console.log("UP")
+            }
+            else {
+                if (previousY < 0) {
+                    client.down(0.1)
+                }
+                else if (previousY > 0) {
+                    client.up(0.1)
+                }
+                console.log("NO Y")
+                previousY = 0
+            }
+        }
+    
+        count++
+        console.log("#Blobs: " + String(blobsFound.blobs.length))
+        console.log(String(count))
     }
     else {
         if (count > 200 || count == 200) {
@@ -103,7 +115,9 @@ function processImage(input) {
                 console.log("...")
               }
               
-              image.write("./ardroneAutonomousControlOutput/image.png")
+              if (count % 10 == 0) {
+                image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
+              }
               output = marker
               markerX = output[0]
               markerY = output[1]
@@ -293,7 +307,7 @@ function analyzeBlobsFound() {
         var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
     }
     else {
-        var center =[320,100]
+        var center =[320,180]
         console.log("...")
     }
     return center
