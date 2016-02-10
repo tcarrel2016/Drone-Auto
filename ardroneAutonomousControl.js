@@ -1,11 +1,15 @@
 //ardroneAutonomousControl.js
 
+<<<<<<< Updated upstream
 //image = 640x360
 //Blob detection
 //No Density
 //Horizontal tracking
 //Vertical tracking
 
+=======
+var prompt = require('prompt')
+>>>>>>> Stashed changes
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
 
@@ -18,25 +22,61 @@ var erosionFactor = 3
 var count = 0
 var skipSize = 5
 var previousX = 0
-
+var room = 0
+var computer_room
+var cafeteria = 'cafeteria';
 var blobsFound = new BlobLibrary()
 
+<<<<<<< Updated upstream
 client.config("video:video_channel", 0)
 
 var pngStream = client.getPngStream()
+=======
+/*lwip.open("./imageWithRedMarker.png", function(err, image) {
+          if (err) throw err
+          
+          console.log("shrinking image...")
+          image.scale(0.5, function(err, shrunken) {
+                      if (err) throw err
+                      
+                      shrunken.writeFile("./ardroneJimpOutput/lwipShrunken.png", "png", ()=>{})
+                      })
+          console.log("done")
+          })*/
 
-pngStream
-.on("error", console.log)
-.on("data", function(incoming) {
-    if (count < 200) {
-         processImage(incoming)
-        
-         client.stop()
-        
-         if (markerX > -1 && markerX > -1) {
-            if (markerX > 320 + 100) {
+prompt.start()
+>>>>>>> Stashed changes
+
+prompt.get (['room'], function (err, result) {
+            if (err) {return onErr(err);}
+            console.log('Command-line input received:');
+            console.log ('room:' +result.room);
+            if (result.room === 'cafeteria'){
+                room=1;
+                console.log('room variable:' +room);
+            }
+            else{
+            
+            }
+            
+            if (room===1) {
+            client.config("video:video_channel", 0)
+            
+            var pngStream = client.getPngStream()
+            
+            pngStream
+            .on("error", console.log)
+            .on("data", function(incoming) {
+                if (count < 5) {
+                processImage(incoming)
+                
+                client.stop()
+                
+                if (markerX > -1 && markerX > -1) {
+                if (markerX > 320 + 100) {
                 client.right(0.08)
                 previousX = 1
+<<<<<<< Updated upstream
                 console.log("RIGHT")
             }
             else if (markerX < 320 - 100) {
@@ -45,15 +85,51 @@ pngStream
                 console.log("LEFT")
             }
             else {
+=======
+                console.log("GO RIGHT")
+                }
+                else if (markerX < 320 - 100) {
+                client.left(0.08)
+                previousX = -1
+                console.log("GO LEFT")
+                }
+                else {
+>>>>>>> Stashed changes
                 if (previousX < 0) {
-                    client.right(0.1)
+                client.right(0.1)
                 }
                 else if (previousX > 0) {
-                    client.left(0.1)
+                client.left(0.1)
                 }
-                console.log("NO X")
+                console.log("HOVER")
                 previousX = 0
+                }
+                }
+<<<<<<< Updated upstream
+                console.log("NO X")
+=======
+                else {
+                console.log("HOVER")
+>>>>>>> Stashed changes
+                previousX = 0
+                }
+                
+                count++
+                console.log("#Blobs: " + String(blobsFound.blobs.length))
+                console.log(String(count))
+                }
+                else {
+                if (count > 5 || count == 5) {
+                client.stop()
+                client.land()
+                }
+                }
+                })
+            
+            client.takeoff()
+            
             }
+<<<<<<< Updated upstream
         }
     
         if (markerY > -1 && markerY > -1) {
@@ -90,8 +166,10 @@ pngStream
         }
     }
     })
+=======
+            })
+>>>>>>> Stashed changes
 
-client.takeoff()
 
 //....................................................................................................
 
