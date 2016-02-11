@@ -13,11 +13,13 @@ var pngImage
 var output
 var markerX = -1
 var markerY = -1
+var markerR = -1
 var erosionFactor = 2
 var count = 0
 var skipSize = 3
 var previousX = 0
 var previousY = 0
+var previousZ = 0
 var blobsFound = new BlobLibrary()
 
 client.config("video:video_channel", 0)
@@ -31,9 +33,42 @@ pngStream
     console.log(String(count))
     
     if (count < 300 && count > 25) {
-         processImage(incoming)
+        processImage(incoming)
 
-         client.stop()
+        client.stop()
+    
+        if (markerX > -1) {
+            if (markerX > 320 + 80) {
+                client.right(0.08)
+                previousX = 1
+                console.log("RIGHT")
+            }
+            else if (markerX < 320 - 80) {
+                client.left(0.08)
+                previousX = -1
+                console.log("LEFT")
+            }
+            else {
+                if (previousX < 0) {
+                    client.right(0.1)
+                }
+                else if (previousX > 0) {
+                    client.left(0.1)
+                }
+                console.log("HOVER")
+                previousX = 0
+            }
+        }
+        else {
+            if (previousX < 0) {
+                client.right(0.05)
+            }
+            else if (previousX > 0) {
+                client.left(0.05)
+            }
+            console.log("NO X")
+            previousX = 0
+        }
 
         if (markerY > -1) {
             if (markerY > 180 + 20) {
@@ -53,10 +88,54 @@ pngStream
                 else if (previousY > 0) {
                     client.up(0.2)
                 }
-                console.log("NO Y")
+                console.log("HOVER")
                 previousY = 0
             }
         }
+        else {
+            if (previousY < 0) {
+                client.down(0.1)
+            }
+            else if (previousY > 0) {
+                client.up(0.1)
+            }
+            console.log("NO Y")
+            previousY = 0
+        }
+    
+//        if (markerR > -1) {
+//            if (markerR > 45 + 5) {
+//                client.back(0.08)
+//                previousZ = -1
+//                console.log("BACK")
+//            }
+//            else if (markerR < 45 - 5) {
+//                client.front(0.08)
+//                previousZ = 1
+//                console.log("FORTH")
+//            }
+//            else {
+//                if (previousZ < 0) {
+//                    client.front(0.05)
+//                }
+//                else if (previousZ > 0) {
+//                    client.back(0.05)
+//                }
+//                console.log("HOVER")
+//                previousZ = 0
+//            }
+//        }
+//        else {
+//            if (previousZ < 0) {
+//                client.front(0.05)
+//            }
+//            else if (previousZ > 0) {
+//                client.back(0.05)
+//            }
+//            console.log("HOVER")
+//            previousZ = 0
+//        }
+    
         console.log("#Blobs: " + String(blobsFound.blobs.length))
     }
     else {
@@ -88,10 +167,14 @@ function processImage(input) {
               
               if (marker[0] > -1 && marker[1] > -1) {
                 image.setPixelColor(jimp.rgbaToInt(255,0,0,255),marker[0],marker[1])
-                //console.log("MARKER: " + String(marker[0]) + "," + String(marker[1]))
+                for (var i=0; i<marker[2]; i++) {
+                  if (marker[0] + i + 1 < image.bitmap.width) {
+                    image.setPixelColor(jimp.rgbaToInt(255,0,0,255),marker[0]+i+1,marker[1])
+                  }
+                }
               }
               else {
-                console.log("...")
+                console.log(".........")
               }
               
               if (count % 5 == 0) {
@@ -100,6 +183,7 @@ function processImage(input) {
               output = marker
               markerX = output[0]
               markerY = output[1]
+              markerR = output[2]
               })
 }
 
@@ -109,7 +193,7 @@ function thresholdImage(image) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //YELLOW-ORANGE
             //if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {                                                                              //RED
-            if (color.r / color.b > (232/93)-0.9 && color.r / color.b < (232/93)+1 && color.r / color.g > (232/172)-0.9 && color.r / color.g < (232/172)+1) {     //ORANGE
+            if (color.r / color.b > (240/110)-0.2 && color.r / color.b < (240/110)+0.8 && color.r / color.g > (240/172)-0.2 && color.r / color.g < (240/172)+0.8) {     //ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
@@ -171,7 +255,7 @@ function findBlobs(image) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             
-            if (color.b > 0 && blobsFound.blobs.length < 7) {
+            if (color.b > 0 && blobsFound.blobs.length < 6) {
                 blobsFound.addBlob()
                 checkLinks(image, x, y, 0)
             }
@@ -283,13 +367,13 @@ function analyzeBlobsFound() {
             }
         }*/
         
-        var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
+        var markerData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
     }
     else {
-        var center =[320,180]
+        var markerData =[320,180]
         console.log("...")
     }
-    return center
+    return markerData
 }
 
 function findMarker(image) {
