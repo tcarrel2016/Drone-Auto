@@ -1,9 +1,18 @@
 //ardroneAutonomousControl.js
 //image = 640x360
 //Blob detection
-//No Density
 //Horizontal tracking
 //Vertical tracking
+//Marks Radius
+
+/*
+    Possible ideas:
+        - remove erosion
+        - introduce multiple-color tracking
+            > change marker to have a smaller colored circle within a differently-colored circle
+            > make the marker only appear if the two different blob colors fall within each others
+        - account for drone tilt by adjusting horizontal and vertical axes?
+ */
 
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
@@ -20,6 +29,10 @@ var skipSize = 3
 var previousX = 0
 var previousY = 0
 var previousZ = 0
+
+var color1 = [240,172,110]
+var color2 = [0,0,255]
+
 var blobsFound = new BlobLibrary()
 
 client.config("video:video_channel", 0)
@@ -158,10 +171,7 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              image = erodeImage(image)
-              
-              //var marker = findMarker(image)      THIS IS THE OLD AVERAGING FUNCTION
-              
+              //image = erodeImage(image)
               findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
               var marker = analyzeBlobsFound()
               
@@ -191,9 +201,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //YELLOW-ORANGE
-            //if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {                                                                              //RED
-            if (color.r / color.b > (240/110)-0.2 && color.r / color.b < (240/110)+0.8 && color.r / color.g > (240/172)-0.2 && color.r / color.g < (240/172)+0.8) {     //ORANGE
+            if (color.r / color.b > (color1[0]/color1[2])-0.2 && color.r / color.b < (color1[0]/color1[2])+0.8 && color.r / color.g > (color1[0]/color1[1])-0.2 && color.r / color.g < (color1[0]/color1[1])+0.8) {     //ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
@@ -374,62 +382,6 @@ function analyzeBlobsFound() {
         console.log("...")
     }
     return markerData
-}
-
-function findMarker(image) {
-    var sumX = 0
-    var avgX = 0
-    var sumY = 0
-    var avgY = 0
-    var count = 0
-    var center
-    var centerVerified = false
-    
-    for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
-        for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
-            var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            
-            if (color.b > 0) {
-                sumX += x
-                sumY += y
-                count++
-            }
-        }
-    }
-    
-    avgX = sumX/count
-    avgY = sumY/count
-    
-    var color = jimp.intToRGBA(image.getPixelColor(avgX, avgY))
-    if (color.b > 0 && avgX - (erosionFactor * skipSize) > 0 && avgX + (erosionFactor * skipSize) < image.bitmap.width && avgY - (erosionFactor * skipSize) > 0 && avgY + (erosionFactor * skipSize) < image.bitmap.height) {
-        color = jimp.intToRGBA(image.getPixelColor(avgX - (erosionFactor * skipSize), avgY))
-        if (color.b > 0) {
-            color = jimp.intToRGBA(image.getPixelColor(avgX + (erosionFactor * skipSize), avgY))
-            if (color.b > 0) {
-                color = jimp.intToRGBA(image.getPixelColor(avgX, avgY - (erosionFactor * skipSize)))
-                if (color.b > 0) {
-                    color = jimp.intToRGBA(image.getPixelColor(avgX, avgY + (erosionFactor * skipSize)))
-                    if (color.b > 0) {
-                        centerVerified = true
-                    }
-                }
-            }
-        }
-    }
-    
-    //if (centerVerified) {
-    if (avgX > 0 && avgY > 0) {
-        center = [avgX, avgY]
-    }
-    else {
-        center = [-1, -1]
-    }
-    //}
-    //else {
-        //center = [-1, -1]
-    //}
-    
-    return center
 }
 
 function BlobLibrary() {
