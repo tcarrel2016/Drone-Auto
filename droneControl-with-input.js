@@ -1,15 +1,11 @@
 //ardroneAutonomousControl.js
-
-<<<<<<< Updated upstream
 //image = 640x360
 //Blob detection
 //No Density
 //Horizontal tracking
 //Vertical tracking
 
-=======
-var prompt = require('prompt')
->>>>>>> Stashed changes
+var prompt = require('prompt');
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
 
@@ -18,158 +14,160 @@ var pngImage
 var output
 var markerX = -1
 var markerY = -1
-var erosionFactor = 3
+var markerR = -1
+var erosionFactor = 2
 var count = 0
-var skipSize = 5
+var skipSize = 3
 var previousX = 0
-var room = 0
-var computer_room
-var cafeteria = 'cafeteria';
+var previousY = 0
+var previousZ = 0
 var blobsFound = new BlobLibrary()
+var room = 0
+var cafeteria = 'cafeteria'
 
-<<<<<<< Updated upstream
 client.config("video:video_channel", 0)
 
 var pngStream = client.getPngStream()
-=======
-/*lwip.open("./imageWithRedMarker.png", function(err, image) {
-          if (err) throw err
-          
-          console.log("shrinking image...")
-          image.scale(0.5, function(err, shrunken) {
-                      if (err) throw err
-                      
-                      shrunken.writeFile("./ardroneJimpOutput/lwipShrunken.png", "png", ()=>{})
-                      })
-          console.log("done")
-          })*/
 
-prompt.start()
->>>>>>> Stashed changes
+prompt.start();
 
-prompt.get (['room'], function (err, result) {
-            if (err) {return onErr(err);}
-            console.log('Command-line input received:');
-            console.log ('room:' +result.room);
-            if (result.room === 'cafeteria'){
-                room=1;
-                console.log('room variable:' +room);
-            }
-            else{
-            
-            }
-            
-            if (room===1) {
-            client.config("video:video_channel", 0)
-            
-            var pngStream = client.getPngStream()
-            
-            pngStream
-            .on("error", console.log)
-            .on("data", function(incoming) {
-                if (count < 5) {
-                processImage(incoming)
-                
-                client.stop()
-                
-                if (markerX > -1 && markerX > -1) {
-                if (markerX > 320 + 100) {
-                client.right(0.08)
-                previousX = 1
-<<<<<<< Updated upstream
-                console.log("RIGHT")
-            }
-            else if (markerX < 320 - 100) {
-                client.left(0.08)
-                previousX = -1
-                console.log("LEFT")
-            }
-            else {
-=======
-                console.log("GO RIGHT")
-                }
-                else if (markerX < 320 - 100) {
-                client.left(0.08)
-                previousX = -1
-                console.log("GO LEFT")
-                }
-                else {
->>>>>>> Stashed changes
-                if (previousX < 0) {
-                client.right(0.1)
-                }
-                else if (previousX > 0) {
-                client.left(0.1)
-                }
-                console.log("HOVER")
-                previousX = 0
-                }
-                }
-<<<<<<< Updated upstream
-                console.log("NO X")
-=======
-                else {
-                console.log("HOVER")
->>>>>>> Stashed changes
-                previousX = 0
-                }
-                
-                count++
-                console.log("#Blobs: " + String(blobsFound.blobs.length))
-                console.log(String(count))
-                }
-                else {
-                if (count > 5 || count == 5) {
-                client.stop()
-                client.land()
-                }
-                }
-                })
-            
-            client.takeoff()
-            
-            }
-<<<<<<< Updated upstream
-        }
-    
-        if (markerY > -1 && markerY > -1) {
-            if (markerY > 180 + 50) {
-                client.down(0.08)
-                previousY = 1
-                console.log("DOWN")
-            }
-            else if (markerY < 180 - 50) {
-                client.up(0.08)
-                previousY = -1
-                console.log("UP")
-            }
-            else {
-                if (previousY < 0) {
-                    client.down(0.1)
-                }
-                else if (previousY > 0) {
-                    client.up(0.1)
-                }
-                console.log("NO Y")
-                previousY = 0
-            }
-        }
-    
-        count++
-        console.log("#Blobs: " + String(blobsFound.blobs.length))
-        console.log(String(count))
-    }
-    else {
-        if (count > 200 || count == 200) {
-            client.stop()
-            client.land()
-        }
-    }
-    })
-=======
-            })
->>>>>>> Stashed changes
+prompt.get (['room'], function (err, result) 
+		{ 
+		console.log('Command-line input received:');
+		console.log('room:' +result.room);
+		})
+			if (result.room === 'cafeteria')
+				{room=1;
+				console.log('room variable:' +room)
+				}
+			else {
+			}
+			
+			if (room===1)					
+				{pngStream
+				.on("error", console.log)
+				.on("data", function(incoming) {
+	
+					console.log(String(count))
+	
+					if (count < 50 && count > 25) {
+						processImage(incoming)
 
+						client.stop()
+	
+						if (markerX > -1) {
+							if (markerX > 320 + 80) {
+								client.right(0.08)
+								previousX = 1
+								console.log("RIGHT")
+							}
+							else if (markerX < 320 - 80) {
+								client.left(0.08)
+								previousX = -1
+								console.log("LEFT")
+							}
+							else {
+								if (previousX < 0) {
+									client.right(0.1)
+								}
+								else if (previousX > 0) {
+									client.left(0.1)
+								}
+								console.log("HOVER")
+								previousX = 0
+							}
+						}
+						else {
+							if (previousX < 0) {
+								client.right(0.05)
+							}
+							else if (previousX > 0) {
+								client.left(0.05)
+							}
+							console.log("NO X")
+							previousX = 0
+						}
+
+						if (markerY > -1) {
+							if (markerY > 180 + 20) {
+								client.down(0.15)
+								previousY = 1
+								console.log("DOWN")
+							}
+							else if (markerY < 180 - 20) {
+								client.up(0.15)
+								previousY = -1
+								console.log("UP")
+							}
+							else {
+								if (previousY < 0) {
+									client.down(0.2)
+								}
+								else if (previousY > 0) {
+									client.up(0.2)
+								}
+								console.log("HOVER")
+								previousY = 0
+							}
+						}
+						else {
+							if (previousY < 0) {
+								client.down(0.1)
+							}
+							else if (previousY > 0) {
+								client.up(0.1)
+							}
+							console.log("NO Y")
+							previousY = 0
+						}
+	
+				//        if (markerR > -1) {
+				//            if (markerR > 45 + 5) {
+				//                client.back(0.08)
+				//                previousZ = -1
+				//                console.log("BACK")
+				//            }
+				//            else if (markerR < 45 - 5) {
+				//                client.front(0.08)
+				//                previousZ = 1
+				//                console.log("FORTH")
+				//            }
+				//            else {
+				//                if (previousZ < 0) {
+				//                    client.front(0.05)
+				//                }
+				//                else if (previousZ > 0) {
+				//                    client.back(0.05)
+				//                }
+				//                console.log("HOVER")
+				//                previousZ = 0
+				//            }
+				//        }
+				//        else {
+				//            if (previousZ < 0) {
+				//                client.front(0.05)
+				//            }
+				//            else if (previousZ > 0) {
+				//                client.back(0.05)
+				//            }
+				//            console.log("HOVER")
+				//            previousZ = 0
+				//        }
+	
+						console.log("#Blobs: " + String(blobsFound.blobs.length))
+					}
+					else {
+						if (count > 50 || count == 50) {
+							client.stop()
+							client.land()
+						}
+					}
+	
+					count++
+					})
+
+				client.takeoff()
+				}
 
 //....................................................................................................
 
@@ -187,18 +185,23 @@ function processImage(input) {
               
               if (marker[0] > -1 && marker[1] > -1) {
                 image.setPixelColor(jimp.rgbaToInt(255,0,0,255),marker[0],marker[1])
-                //console.log("MARKER: " + String(marker[0]) + "," + String(marker[1]))
+                for (var i=0; i<marker[2]; i++) {
+                  if (marker[0] + i + 1 < image.bitmap.width) {
+                    image.setPixelColor(jimp.rgbaToInt(255,0,0,255),marker[0]+i+1,marker[1])
+                  }
+                }
               }
               else {
-                console.log("...")
+                console.log(".........")
               }
               
-              if (count % 10 == 0) {
+              if (count % 5 == 0) {
                 image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
               }
               output = marker
               markerX = output[0]
               markerY = output[1]
+              markerR = output[2]
               })
 }
 
@@ -208,7 +211,7 @@ function thresholdImage(image) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             //if (color.r / color.b > 2.2 && color.r / color.g > 1 && color.r / color.g < 2.3) {                                                     //YELLOW-ORANGE
             //if (color.r / color.b > 1.5 && color.r / color.g > 1.5) {                                                                              //RED
-            if (color.r / color.b > (232/93)-0.75 && color.r / color.b < (232/93)+0.75 && color.r / color.g > (232/172)-0.75 && color.r / color.g < (232/172)+0.75) {     //ORANGE
+            if (color.r / color.b > (240/110)-0.2 && color.r / color.b < (240/110)+0.8 && color.r / color.g > (240/172)-0.2 && color.r / color.g < (240/172)+0.8) {     //ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
@@ -270,7 +273,7 @@ function findBlobs(image) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             
-            if (color.b > 0 && blobsFound.blobs.length < 7) {
+            if (color.b > 0 && blobsFound.blobs.length < 6) {
                 blobsFound.addBlob()
                 checkLinks(image, x, y, 0)
             }
@@ -353,7 +356,7 @@ function analyzeBlobsFound() {
             
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
-                //bestCircularity[0] = circularity
+                bestCircularity[0] = circularity
                 //bestCircularity[1] = i
                 bestBlob = i
             }
@@ -382,13 +385,13 @@ function analyzeBlobsFound() {
             }
         }*/
         
-        var center = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1]]
+        var markerData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
     }
     else {
-        var center =[320,180]
+        var markerData =[320,180]
         console.log("...")
     }
-    return center
+    return markerData
 }
 
 function findMarker(image) {
