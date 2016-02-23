@@ -11,7 +11,7 @@
         - introduce multiple-color tracking
             > change marker to have a smaller colored circle within a differently-colored circle
             > make the marker only appear if the two different blob colors fall within each others
-        - account for drone tilt by adjusting horizontal and vertical axes?
+        - account for drone tilt by adjusting horizontal and vertical axes' tilt?
  */
 
 var ardrone = require('ar-drone')
@@ -171,7 +171,7 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              //image = erodeImage(image)
+              image = erodeImage(image)
               findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
               var marker = analyzeBlobsFound()
               
