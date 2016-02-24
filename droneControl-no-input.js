@@ -9,9 +9,11 @@
 
     [•] Mark all blobs
     [ ] Mark all blobs considered in analyzeBlobsFound()
-    [ ] Remove erosion
-    [ ] Create area of perfect blank color
+    [•] Remove erosion
+    [•] Create area of perfect blank color
     [ ] Test density use (unrelated to fixing stuff)
+    [•] Test radius use (unrelated to fixing stuff)
+    [•] Remove minimum mass
 */
 
 var ardrone = require('ar-drone')
@@ -52,12 +54,12 @@ pngStream
     
         if (markerX > -1) {
             if (markerX > 320 + 80) {
-                client.right(0.08)
+                client.right(0.06)
                 previousX = 1
                 console.log("RIGHT")
             }
             else if (markerX < 320 - 80) {
-                client.left(0.08)
+                client.left(0.06)
                 previousX = -1
                 console.log("LEFT")
             }
@@ -74,10 +76,10 @@ pngStream
         }
         else {
             if (previousX < 0) {
-                client.right(0.05)
+                client.right(0.1)
             }
             else if (previousX > 0) {
-                client.left(0.05)
+                client.left(0.1)
             }
             console.log("NO X")
             previousX = 0
@@ -107,47 +109,47 @@ pngStream
         }
         else {
             if (previousY < 0) {
-                client.down(0.1)
+                client.down(0.2)
             }
             else if (previousY > 0) {
-                client.up(0.1)
+                client.up(0.2)
             }
             console.log("NO Y")
             previousY = 0
         }
     
-//        if (markerR > -1) {
-//            if (markerR > 45 + 5) {
-//                client.back(0.08)
-//                previousZ = -1
-//                console.log("BACK")
-//            }
-//            else if (markerR < 45 - 5) {
-//                client.front(0.08)
-//                previousZ = 1
-//                console.log("FORTH")
-//            }
-//            else {
-//                if (previousZ < 0) {
-//                    client.front(0.05)
-//                }
-//                else if (previousZ > 0) {
-//                    client.back(0.05)
-//                }
-//                console.log("HOVER")
-//                previousZ = 0
-//            }
-//        }
-//        else {
-//            if (previousZ < 0) {
-//                client.front(0.05)
-//            }
-//            else if (previousZ > 0) {
-//                client.back(0.05)
-//            }
-//            console.log("HOVER")
-//            previousZ = 0
-//        }
+        if (markerR > -1) {
+            if (markerR > 30 + 5) {
+                client.back(0.02)
+                previousZ = -1
+                console.log("BACK")
+            }
+            else if (markerR < 30 - 5) {
+                client.front(0.02)
+                previousZ = 1
+                console.log("FORTH")
+            }
+            else {
+                if (previousZ < 0) {
+                    client.front(0.04)
+                }
+                else if (previousZ > 0) {
+                    client.back(0.04)
+                }
+                console.log("HOVER")
+                previousZ = 0
+            }
+        }
+        else {
+            if (previousZ < 0) {
+                client.front(0.04)
+            }
+            else if (previousZ > 0) {
+                client.back(0.04)
+            }
+            console.log("HOVER")
+            previousZ = 0
+        }
     
         console.log("#Blobs: " + String(blobsFound.blobs.length))
     }
@@ -171,7 +173,7 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              image = erodeImage(image)
+              //image = erodeImage(image)
               findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
               var marker = analyzeBlobsFound()
               
@@ -187,6 +189,8 @@ function processImage(input) {
                 console.log(".........")
               }
               
+              markBlobs(image)
+              
               if (count % 5 == 0) {
                 image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
               }
@@ -201,7 +205,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2])-0.2 && color.r / color.b < (color1[0]/color1[2])+0.8 && color.r / color.g > (color1[0]/color1[1])-0.2 && color.r / color.g < (color1[0]/color1[1])+0.8) {     //ORANGE
+            if (color.r / color.b > (color1[0]/color1[2])-0.6 && color.r / color.b < (color1[0]/color1[2])+0.5 && color.r / color.g > (color1[0]/color1[1])-0.25 && color.r / color.g < (color1[0]/color1[1])+0.8) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             else {
@@ -269,15 +273,13 @@ function findBlobs(image) {
             }
         }
     }
-    
-    markBlobs(image)
 }
 
 function markBlobs(image) {
     for (var i=0; i<blobsFound.blobs.length; i++) {
         var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
         
-        image.setPixelColor(jimp.rgbaToInt(0,0,255,255),location[0],location[1])
+        image.setPixelColor(jimp.rgbaToInt(0,100,255,255),location[0],location[1])
     }
 }
 
@@ -347,8 +349,8 @@ function analyzeBlobsFound() {
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
         if (blobsFound.blobs[i].links.length < 10) {
-            blobsFound.blobs.splice(i,1)
-            i--
+            //blobsFound.blobs.splice(i,1)
+            //i--
         }
         else if (blobsFound.blobs[i].links.length > 0) {
             blobsFound.blobs[i].calculateCenter()
@@ -388,7 +390,7 @@ function analyzeBlobsFound() {
         var markerData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
     }
     else {
-        var markerData =[320,180]
+        var markerData =[-1,-1,-1]
         console.log("...")
     }
     return markerData
