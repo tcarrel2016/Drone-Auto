@@ -5,14 +5,14 @@
 //Vertical tracking
 //Marks Radius
 
-/*
-    Possible ideas:
-        - remove erosion
-        - introduce multiple-color tracking
-            > change marker to have a smaller colored circle within a differently-colored circle
-            > make the marker only appear if the two different blob colors fall within each others
-        - account for drone tilt by adjusting horizontal and vertical axes' tilt?
- */
+/* AGENDA
+
+    [•] Mark all blobs
+    [ ] Mark all blobs considered in analyzeBlobsFound()
+    [ ] Remove erosion
+    [ ] Create area of perfect blank color
+    [ ] Test density use (unrelated to fixing stuff)
+*/
 
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
@@ -269,6 +269,16 @@ function findBlobs(image) {
             }
         }
     }
+    
+    markBlobs(image)
+}
+
+function markBlobs(image) {
+    for (var i=0; i<blobsFound.blobs.length; i++) {
+        var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
+        
+        image.setPixelColor(jimp.rgbaToInt(0,0,255,255),location[0],location[1])
+    }
 }
 
 function checkLinks(image, x, y, direction) {
@@ -347,12 +357,12 @@ function analyzeBlobsFound() {
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
                 bestCircularity[0] = circularity
-                //bestCircularity[1] = i
+                bestCircularity[1] = i
                 bestBlob = i
             }
             
-            /*var density = blobsFound.blobs[i].aspects[4] / blobsFound.blobs[i].aspects[2]
-            if (density > bestDensity[0]) {
+            var density = blobsFound.blobs[i].aspects[4]
+            /*if (density > bestDensity[0]) {
                 bestDensity[0] = density
                 bestDensity[1] = i
             }*/
@@ -360,11 +370,11 @@ function analyzeBlobsFound() {
     }
     
     if (blobsFound.blobs.length > 0) {
-        /*if (bestCircularity[1] != bestDensity[1]) {
-            bestBlob = i
+        /*if (bestCircularity[1] == bestDensity[1]) {
+            bestBlob = bestCircularity[1]
         }
         else {
-            var score1 = (blobsFound.blobs[bestCircularity[1]].aspects[4] / blobsFound.blobs[bestCircularity[1]].aspects[2]) - bestCircularity[0]
+            var score1 = (blobsFound.blobs[bestCircularity[1]].aspects[4]) - bestCircularity[0]
             var score2 = bestDensity[0] - blobsFound.blobs[bestDensity[1]].aspects[3]
             
             if (score1 > score2) {
@@ -391,8 +401,6 @@ function BlobLibrary() {
 BlobLibrary.prototype.addBlob = function() {
     this.blobs = this.blobs.concat(new Blob())
 }
-
-
 
 function Blob() {
     this.links = []
