@@ -10,10 +10,12 @@
     [•] Mark all blobs
     [ ] Mark all blobs considered in analyzeBlobsFound()
     [•] Remove erosion
-    [•] Create area of perfect blank color
-    [ ] Test density use (unrelated to fixing stuff)
-    [•] Test radius use (unrelated to fixing stuff)
+    [ ] Create area of perfect blank color
+    [ ] Test density use (unrelated to fixing stuff). RESULT: no errors so far
+    [•] Test radius use (unrelated to fixing stuff). RESULT: no errors, not sure if working
     [•] Remove minimum mass
+    [•] Check if findBlobs() takes into account the entire image (it seems that some areas are ignored (bottom-right)) by looking at the code. RESULT: no visible errors
+ 
 */
 
 var ardrone = require('ar-drone')
