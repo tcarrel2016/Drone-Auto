@@ -35,7 +35,7 @@ var previousY = 0
 var previousZ = 0
 
 var color1 = [240,172,110]
-var color2 = [0,0,255]
+var color2 = [50,200,255]
 
 var blobsFound = new BlobLibrary()
 
@@ -175,7 +175,6 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              //image = erodeImage(image)
               findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
               var marker = analyzeBlobsFound()
               
@@ -207,54 +206,14 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2])-0.6 && color.r / color.b < (color1[0]/color1[2])+0.5 && color.r / color.g > (color1[0]/color1[1])-0.25 && color.r / color.g < (color1[0]/color1[1])+0.8) {     //ORANGE, optimized for band room
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 0.5 && color.r / color.g > (color1[0]/color1[1]) - 0.25 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
+            }
+            else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
+                image.setPixelColor(jimp.rgbaToInt(100,100,100,255,x,y))
             }
             else {
                 image.setPixelColor(jimp.rgbaToInt(0,0,0,255),x,y)
-            }
-        }
-    }
-    
-    return image
-}
-
-function erodeImage(image) {
-    for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
-        for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
-            var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            var neighborColor = color
-            
-            if ((x-(erosionFactor*skipSize)) > 0) {
-                neighborColor = jimp.intToRGBA(image.getPixelColor(x-(erosionFactor * skipSize),y))
-                
-                if (neighborColor.r == 255 && (x+(erosionFactor*skipSize)) < image.bitmap.width) {
-                    neighborColor = jimp.intToRGBA(image.getPixelColor(x+(erosionFactor * skipSize),y))
-                    
-                    if (neighborColor.r == 255 && (y-(erosionFactor*skipSize)) > 0) {
-                        neighborColor = jimp.intToRGBA(image.getPixelColor(x,y-(erosionFactor * skipSize)))
-                        
-                        if (neighborColor.r == 255 && (y+(erosionFactor*skipSize)) < image.bitmap.height) {
-                            neighborColor = jimp.intToRGBA(image.getPixelColor(x,y+(erosionFactor * skipSize)))
-                            
-                            if (neighborColor.r == 255) {
-                                image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
-                            }
-                            else {
-                                image.setPixelColor(jimp.rgbaToInt(color.r,color.g,0,255),x,y)
-                            }
-                        }
-                        else {
-                            image.setPixelColor(jimp.rgbaToInt(color.r,color.g,0,255),x,y)
-                        }
-                    }
-                    else {
-                        image.setPixelColor(jimp.rgbaToInt(color.r,color.g,0,255),x,y)
-                    }
-                }
-                else {
-                    image.setPixelColor(jimp.rgbaToInt(color.r,color.g,0,255),x,y)
-                }
             }
         }
     }
