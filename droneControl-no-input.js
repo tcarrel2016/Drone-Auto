@@ -7,14 +7,16 @@
 
 /* AGENDA
 
-    [•] Mark all blobs
-    [ ] Mark all blobs considered in analyzeBlobsFound()
-    [•] Remove erosion
-    [ ] Create area of perfect blank color
-    [ ] Test density use (unrelated to fixing stuff). RESULT: no errors so far
-    [•] Test radius use (unrelated to fixing stuff). RESULT: no errors, not sure if working
-    [•] Remove minimum mass
-    [•] Check if findBlobs() takes into account the entire image (it seems that some areas are ignored (bottom-right)) by looking at the code. RESULT: no visible errors
+    √ Find blobs
+    √ Record edge links
+    • Record radii from center to edge links
+    • Record max-min radial difference
+    • Find blob with largest difference (not average difference)
+    • Get blob line
+    • Find blob line direction
+    • Use Ø(droneDirection-blobDirection) to control Yaw angle
+    • Use bottom camera
+    • Incorporate second color for junctions, with original functions
  
 */
 
@@ -244,7 +246,7 @@ function markBlobs(image) {
     }
 }
 
-function checkLinks(image, x, y, direction) {
+function checkLinks(image, x, y, direction) {       //This needs to be changed to take in two arguments, one for each color being searched
     var inBlob = false
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
@@ -265,6 +267,7 @@ function checkLinks(image, x, y, direction) {
     }
     else {
         blobsFound.blobs[blobsFound.blobs.length-1].addLink(x,y)
+        checkEdge(image,x,y)
         
         if (direction != 0 && y-skipSize > 0) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
@@ -297,6 +300,104 @@ function checkLinks(image, x, y, direction) {
     }
 }
 
+function checkEdge(image, x, y) {
+    var neighbors = 0
+    var color
+    var isEdge = false
+    
+    if (x+skipSize < image.bitmap.width && y-skipSize > 0 && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y-skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (x+skipSize < image.bitmap.width) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y+skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (y+skipSize < image.bitmap.height && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (x-skipSize > 0 && y+skipSize < image.bitmap.height && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y+skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (x-skipSize > 0 && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (x-skipSize >0 && y-skipSize > 0 && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y-skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (y-skipSize > 0 && isEdge == false) {
+        color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
+        if color.b == 255 {
+            neighbors++
+        }
+    }
+    else {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
+    }
+    
+    if (isEdge == false && neighbors < 6) {
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+    }
+}
+
 function analyzeBlobsFound() {
     var bestCircularity = [2]       //circularity, blob#
     bestCircularity[0] = 20
@@ -309,13 +410,14 @@ function analyzeBlobsFound() {
     var bestBlob = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].links.length < 10) {
+        if (blobsFound.blobs[i].links.length < 5) {
             //blobsFound.blobs.splice(i,1)
             //i--
         }
         else if (blobsFound.blobs[i].links.length > 0) {
             blobsFound.blobs[i].calculateCenter()
-            blobsFound.blobs[i].calculateRadiusAndCircularity()
+            blobsFound.blobs[i].calculateRadiusCircularityDensity()
+            blobsFound.blobs[i].calculateLinenessDirection()
             
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
@@ -367,16 +469,23 @@ BlobLibrary.prototype.addBlob = function() {
 
 function Blob() {
     this.links = []
-    this.aspects = [5]
-    this.aspects[0] = 320
-    this.aspects[1] = 200
-    this.aspects[2] = 50
-    this.aspects[3] = 3
-    this.aspects[4] = 5
+    this.edges = []
+    this.aspects = [7]
+    this.aspects[0] = 320   //X
+    this.aspects[1] = 200   //Y
+    this.aspects[2] = 50    //R adius
+    this.aspects[3] = 3     //C ircularity
+    this.aspects[4] = 5     //D ensity
+    this.aspects[5] = 0     //L ine-ness
+    this.aspects[6] = 0     //A ngle
 }
 
 Blob.prototype.addLink = function(x, y) {
     this.links = this.links.concat(new Link(x, y))
+}
+
+Blob.prototype.addEdge = function(x, y) {
+    this.edges = this.edges.concat(new Link(x, y))
 }
 
 Blob.prototype.calculateCenter = function() {
@@ -395,7 +504,7 @@ Blob.prototype.calculateCenter = function() {
     this.aspects[1] = Y
 }
 
-Blob.prototype.calculateRadiusAndCircularity = function() {
+Blob.prototype.calculateRadiusCircularityDensity = function() {
     var L = 0;
     var R = 0;
     var U = 0;
@@ -446,6 +555,10 @@ Blob.prototype.calculateRadiusAndCircularity = function() {
     this.aspects[3] = (L+R+U+D) / 4;
     
     this.aspects[4] = this.links.length / this.aspects[2]
+}
+
+Blob.prototype.calculateLinenessDirection = function() {
+    
 }
 
 function Link(x, y) {
