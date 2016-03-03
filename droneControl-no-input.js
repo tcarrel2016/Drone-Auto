@@ -9,6 +9,11 @@
 
     √ Find blobs
     √ Record edge links
+    √ Test bottom camera
+    √ Test if edge link detection is done accurately by marking them    NOTE: I'm wondering if links should store an edge? var, if edge finding is asynchronous at all.
+    • Fix glitches with blob detecting 
+    √   (skipping blobs)
+    •   (green on bottom and right borders of the image)
     • Record radii from center to edge links
     • Record max-min radial difference
     • Find blob with largest difference (not average difference)
@@ -19,6 +24,15 @@
     • Incorporate second color for junctions, with original functions
  
 */
+
+//COLORS USED:
+/*
+        WHITE: line marker
+        GRAY:  junction marker
+        RED:   radius
+        BLUE:  center
+        GREEN: edge
+ */
 
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
@@ -37,11 +51,11 @@ var previousY = 0
 var previousZ = 0
 
 var color1 = [240,172,110]
-var color2 = [50,200,255]
+var color2 = [240,172,110]
 
 var blobsFound = new BlobLibrary()
 
-client.config("video:video_channel", 0)
+client.config("video:video_channel", 1)
 
 var pngStream = client.getPngStream()
 
@@ -53,7 +67,8 @@ pngStream
     
     if (count < 300 && count > 25) {
         processImage(incoming)
-
+    
+        /*
         client.stop()
     
         if (markerX > -1) {
@@ -154,20 +169,21 @@ pngStream
             console.log("HOVER")
             previousZ = 0
         }
-    
+        */
         console.log("#Blobs: " + String(blobsFound.blobs.length))
+        
     }
     else {
         if (count > 300 || count == 300) {
-            client.stop()
-            client.land()
+            //client.stop()
+            //client.land()
         }
     }
     
     count++
     })
 
-client.takeoff()
+//client.takeoff()
 
 
 //....................................................................................................
@@ -177,8 +193,8 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              findBlobs(image)                    //THESE ARE THE NEW BLOB FUNCTIONS
-              var marker = analyzeBlobsFound()
+              findBlobs(image)
+              var marker = findJunctions()
               
               if (marker[0] > -1 && marker[1] > -1) {
                 image.setPixelColor(jimp.rgbaToInt(255,0,0,255),marker[0],marker[1])
@@ -211,9 +227,9 @@ function thresholdImage(image) {
             if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 0.5 && color.r / color.g > (color1[0]/color1[1]) - 0.25 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
-            else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
-                image.setPixelColor(jimp.rgbaToInt(100,100,100,255,x,y))
-            }
+            /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
+                image.setPixelColor(jimp.rgbaToInt(100,100,100,255),x,y)
+            }*/
             else {
                 image.setPixelColor(jimp.rgbaToInt(0,0,0,255),x,y)
             }
@@ -230,8 +246,8 @@ function findBlobs(image) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             
-            if (color.b > 0 && blobsFound.blobs.length < 6) {
-                blobsFound.addBlob()
+            if (color.b > 0 /*&& blobsFound.blobs.length < 10*/) {
+                blobsFound.addBlob(0)
                 checkLinks(image, x, y, 0)
             }
         }
@@ -243,6 +259,11 @@ function markBlobs(image) {
         var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
         
         image.setPixelColor(jimp.rgbaToInt(0,100,255,255),location[0],location[1])
+        
+        for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
+            location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
+            image.setPixelColor(jimp.rgbaToInt(0,255,0,255),location[0],location[1])
+        }
     }
 }
 
@@ -307,98 +328,98 @@ function checkEdge(image, x, y) {
     
     if (x+skipSize < image.bitmap.width && y-skipSize > 0 && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y-skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (x+skipSize < image.bitmap.width) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y+skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (y+skipSize < image.bitmap.height && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (x-skipSize > 0 && y+skipSize < image.bitmap.height && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y+skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (x-skipSize > 0 && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (x-skipSize >0 && y-skipSize > 0 && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y-skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
     if (y-skipSize > 0 && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
-        if color.b == 255 {
+        if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
+        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        //isEdge = true
     }
     
-    if (isEdge == false && neighbors < 6) {
+    if (isEdge == false && neighbors < 7) {
         blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
     }
 }
 
-function analyzeBlobsFound() {
+function findJunctions() {
     var bestCircularity = [2]       //circularity, blob#
     bestCircularity[0] = 20
     bestCircularity[1] = 0
@@ -410,11 +431,7 @@ function analyzeBlobsFound() {
     var bestBlob = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].links.length < 5) {
-            //blobsFound.blobs.splice(i,1)
-            //i--
-        }
-        else if (blobsFound.blobs[i].links.length > 0) {
+        if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 5) {
             blobsFound.blobs[i].calculateCenter()
             blobsFound.blobs[i].calculateRadiusCircularityDensity()
             blobsFound.blobs[i].calculateLinenessDirection()
@@ -456,6 +473,7 @@ function analyzeBlobsFound() {
         var markerData =[-1,-1,-1]
         console.log("...")
     }
+    
     return markerData
 }
 
@@ -463,14 +481,14 @@ function BlobLibrary() {
     this.blobs = []
 }
 
-BlobLibrary.prototype.addBlob = function() {
-    this.blobs = this.blobs.concat(new Blob())
+BlobLibrary.prototype.addBlob = function(color) {
+    this.blobs = this.blobs.concat(new Blob(color))
 }
 
-function Blob() {
+function Blob(color) {
     this.links = []
     this.edges = []
-    this.aspects = [7]
+    this.aspects = [8]
     this.aspects[0] = 320   //X
     this.aspects[1] = 200   //Y
     this.aspects[2] = 50    //R adius
@@ -478,6 +496,7 @@ function Blob() {
     this.aspects[4] = 5     //D ensity
     this.aspects[5] = 0     //L ine-ness
     this.aspects[6] = 0     //A ngle
+    this.aspects[7] = color //C olor (1=line,2=junction)
 }
 
 Blob.prototype.addLink = function(x, y) {
