@@ -36,6 +36,7 @@
 
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
+var math = require('./mathjs-master/index.js')
 
 var client = ardrone.createClient()
 var pngImage
@@ -194,6 +195,8 @@ function processImage(input) {
               if (err) throw err
               image = thresholdImage(image)
               findBlobs(image)
+              analyzeBlobs()
+              var line = findLines()
               var marker = findJunctions()
               
               if (marker[0] > -1 && marker[1] > -1) {
@@ -224,7 +227,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 0.5 && color.r / color.g > (color1[0]/color1[1]) - 0.25 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 0.7 && color.r / color.g > (color1[0]/color1[1]) - 0.25 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
@@ -246,8 +249,8 @@ function findBlobs(image) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
             
-            if (color.b > 0 /*&& blobsFound.blobs.length < 10*/) {
-                blobsFound.addBlob(0)
+            if (color.b > 0) {
+                blobsFound.addBlob(1)
                 checkLinks(image, x, y, 0)
             }
         }
@@ -256,13 +259,15 @@ function findBlobs(image) {
 
 function markBlobs(image) {
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
-        
-        image.setPixelColor(jimp.rgbaToInt(0,100,255,255),location[0],location[1])
-        
-        for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
-            location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
-            image.setPixelColor(jimp.rgbaToInt(0,255,0,255),location[0],location[1])
+        if (blobsFound.blobs[i].links.length > 5) {
+            var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
+            
+            image.setPixelColor(jimp.rgbaToInt(0,100,255,255),location[0],location[1])
+            
+            for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
+                location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
+                image.setPixelColor(jimp.rgbaToInt(0,255,0,255),location[0],location[1])
+            }
         }
     }
 }
@@ -333,19 +338,19 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
-    if (x+skipSize < image.bitmap.width) {
+    if (x+skipSize < image.bitmap.width && isEdge == false) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
         if (color.b == 255) {
             neighbors++
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height && isEdge == false) {
@@ -355,8 +360,8 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (y+skipSize < image.bitmap.height && isEdge == false) {
@@ -366,8 +371,8 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (x-skipSize > 0 && y+skipSize < image.bitmap.height && isEdge == false) {
@@ -377,8 +382,8 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (x-skipSize > 0 && isEdge == false) {
@@ -388,8 +393,8 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (x-skipSize >0 && y-skipSize > 0 && isEdge == false) {
@@ -399,8 +404,8 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
     if (y-skipSize > 0 && isEdge == false) {
@@ -410,13 +415,31 @@ function checkEdge(image, x, y) {
         }
     }
     else {
-        //blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        //isEdge = true
+        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+        isEdge = true
     }
     
-    if (isEdge == false && neighbors < 7) {
+    if (isEdge == false && neighbors > 1 && neighbors < 7) {
         blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
     }
+}
+
+function analyzeBlobs() {
+    for (var i=0; i<blobsFound.blobs.length; i++) {
+        
+        blobsFound.blobs[i].calculateCenter()
+        
+        if (blobsFound.blobs[i].aspects[7] == 1) {
+            blobsFound.blobs[i].calculateLinenessDirection()
+        }
+        else if (blobsFound.blobs[i].aspects[7] == 2) {
+            blobsFound.blobs[i].calculateRadiusCircularityDensity()
+        }
+    }
+}
+
+function findLines() {
+    
 }
 
 function findJunctions() {
@@ -432,10 +455,7 @@ function findJunctions() {
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
         if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 5) {
-            blobsFound.blobs[i].calculateCenter()
-            blobsFound.blobs[i].calculateRadiusCircularityDensity()
-            blobsFound.blobs[i].calculateLinenessDirection()
-            
+
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
                 bestCircularity[0] = circularity
@@ -467,14 +487,14 @@ function findJunctions() {
             }
         }*/
         
-        var markerData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
+        var junctionData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
     }
     else {
-        var markerData =[-1,-1,-1]
+        var junctionData =[-1,-1,-1]
         console.log("...")
     }
     
-    return markerData
+    return junctionData
 }
 
 function BlobLibrary() {
@@ -577,7 +597,12 @@ Blob.prototype.calculateRadiusCircularityDensity = function() {
 }
 
 Blob.prototype.calculateLinenessDirection = function() {
+    var edgeRadii = [this.edges.length]
     
+    for (var i=0; i<this.edges.length; i++) {
+        var edgeRadius = math.sqrt(math.pow(this.edges[i].x,2) + math.pow(this.edges[i].y,2))
+        edgeRadii[i] = edgeRadius
+    }
 }
 
 function Link(x, y) {
