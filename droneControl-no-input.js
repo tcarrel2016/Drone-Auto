@@ -11,11 +11,11 @@
     √ Record edge links
     √ Test bottom camera
     √ Test if edge link detection is done accurately by marking them    NOTE: I'm wondering if links should store an edge? var, if edge finding is asynchronous at all.
-    • Fix glitches with blob detecting 
+    √ Fix glitches with blob detecting
     √   (skipping blobs)
-    •   (green on bottom and right borders of the image)
-    • Record radii from center to edge links
-    • Record max-min radial difference
+    √   (green on bottom and right borders of the image)
+    √ Record radii from center to edge links
+    √ Record max-min radial difference
     • Find blob with largest difference (not average difference)
     • Get blob line
     • Find blob line direction
@@ -598,11 +598,23 @@ Blob.prototype.calculateRadiusCircularityDensity = function() {
 
 Blob.prototype.calculateLinenessDirection = function() {
     var edgeRadii = [this.edges.length]
+    var shortest = 700
+    var longest = 0
     
     for (var i=0; i<this.edges.length; i++) {
         var edgeRadius = math.sqrt(math.pow(this.edges[i].x,2) + math.pow(this.edges[i].y,2))
+        
+        if (edgeRadius < shortest) {
+            shortest = edgeRadius
+        }
+        if (edgeRadius > longest) {
+            longest = edgeRadius
+        }
+        
         edgeRadii[i] = edgeRadius
     }
+    
+    var lineness = shortest - longest
 }
 
 function Link(x, y) {
