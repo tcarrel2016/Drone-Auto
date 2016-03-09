@@ -36,7 +36,7 @@
 
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
-var math = require('./mathjs-master/index.js')
+var math = require('./mathjs-master/index.js')  //Comprehensive math library (used for square root, exponents, absolute value, vector math, etc.)
 
 var client = ardrone.createClient()
 var pngImage
@@ -600,21 +600,39 @@ Blob.prototype.calculateLinenessDirection = function() {
     var edgeRadii = [this.edges.length]
     var shortest = 700
     var longest = 0
+    var arrow = []
     
     for (var i=0; i<this.edges.length; i++) {
-        var edgeRadius = math.sqrt(math.pow(this.edges[i].x,2) + math.pow(this.edges[i].y,2))
+        var edgeRadius = math.sqrt(math.pow(this.edges[i].x - this.aspects[0],2) + math.pow(this.edges[i].y - this.aspects[1],2))
         
         if (edgeRadius < shortest) {
             shortest = edgeRadius
         }
         if (edgeRadius > longest) {
             longest = edgeRadius
+            arrow = [this.edges[i].x - this.aspects[0],this.edges[i].y - this.aspects[1]]
         }
         
         edgeRadii[i] = edgeRadius
     }
     
-    var lineness = shortest - longest
+    var lineness = longest - shortest
+    
+    this.aspects[5] = lineness
+    
+    var angle = math.atan2(math.abs(arrow.y/arrow.x))
+    
+    if (arrow.x < 0 && arrow.y > 0) {
+        angle = math.pi - angle
+    }
+    else if (arrow.x < 0 && arrow.y < 0) {
+        angle = math.pi + angle
+    }
+    else if (arrow.x > 0 && arrow.y < 0) {
+        angle = (2*math.pi) - angle
+    }
+    
+    this.aspects[6] = angle
 }
 
 function Link(x, y) {
