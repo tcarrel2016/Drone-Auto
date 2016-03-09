@@ -329,97 +329,64 @@ function checkLinks(image, x, y, direction) {       //This needs to be changed t
 function checkEdge(image, x, y) {
     var neighbors = 0
     var color
-    var isEdge = false
     
-    if (x+skipSize < image.bitmap.width && y-skipSize > 0 && isEdge == false) {
+    if (x+skipSize < image.bitmap.width && y-skipSize > 0) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y-skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (x+skipSize < image.bitmap.width && isEdge == false) {
+    if (x+skipSize < image.bitmap.width) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height && isEdge == false) {
+    if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height) {
         color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y+skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (y+skipSize < image.bitmap.height && isEdge == false) {
+    if (y+skipSize < image.bitmap.height) {
         color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (x-skipSize > 0 && y+skipSize < image.bitmap.height && isEdge == false) {
+    if (x-skipSize > 0 && y+skipSize < image.bitmap.height) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y+skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (x-skipSize > 0 && isEdge == false) {
+    if (x-skipSize > 0) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (x-skipSize >0 && y-skipSize > 0 && isEdge == false) {
+    if (x-skipSize >0 && y-skipSize > 0) {
         color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y-skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (y-skipSize > 0 && isEdge == false) {
+    if (y-skipSize > 0) {
         color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
         if (color.b == 255) {
             neighbors++
         }
     }
-    else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
-        isEdge = true
-    }
     
-    if (isEdge == false && neighbors > 1 && neighbors < 7) {
+    if (neighbors > 1 && neighbors < 7) {
         blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
     }
 }
@@ -600,7 +567,7 @@ Blob.prototype.calculateLinenessDirection = function() {
     var edgeRadii = [this.edges.length]
     var shortest = 700
     var longest = 0
-    var arrow = []
+    var arrow = [1,1]
     
     for (var i=0; i<this.edges.length; i++) {
         var edgeRadius = math.sqrt(math.pow(this.edges[i].x - this.aspects[0],2) + math.pow(this.edges[i].y - this.aspects[1],2))
@@ -610,7 +577,8 @@ Blob.prototype.calculateLinenessDirection = function() {
         }
         if (edgeRadius > longest) {
             longest = edgeRadius
-            arrow = [this.edges[i].x - this.aspects[0],this.edges[i].y - this.aspects[1]]
+            arrow[0] = this.edges[i].x - this.aspects[0]
+            arrow[1] = this.edges[i].y - this.aspects[1]
         }
         
         edgeRadii[i] = edgeRadius
@@ -620,15 +588,15 @@ Blob.prototype.calculateLinenessDirection = function() {
     
     this.aspects[5] = lineness
     
-    var angle = math.atan2(math.abs(arrow.y/arrow.x))
+    var angle = math.atan2(math.abs(arrow[0]), math.abs(arrow[1]))
     
-    if (arrow.x < 0 && arrow.y > 0) {
+    if (arrow[0] < 0 && arrow[1] > 0) {
         angle = math.pi - angle
     }
-    else if (arrow.x < 0 && arrow.y < 0) {
+    else if (arrow[0] < 0 && arrow[1] < 0) {
         angle = math.pi + angle
     }
-    else if (arrow.x > 0 && arrow.y < 0) {
+    else if (arrow[0] > 0 && arrow[1] < 0) {
         angle = (2*math.pi) - angle
     }
     
