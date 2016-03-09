@@ -16,9 +16,10 @@
     √   (green on bottom and right borders of the image)
     √ Record radii from center to edge links
     √ Record max-min radial difference
-    • Find blob with largest difference (not average difference)
-    • Get blob line
-    • Find blob line direction
+    √ Find blob with largest difference (not average difference)
+    √ Get blob line
+    √ Find blob line direction
+    √ Mark path
     • Use Ø(droneDirection-blobDirection) to control Yaw angle
     • Use bottom camera
     • Incorporate second color for junctions, with original functions
@@ -44,6 +45,7 @@ var output
 var markerX = -1
 var markerY = -1
 var markerR = -1
+var pathA = -1
 var erosionFactor = 2
 var count = 0
 var skipSize = 3
@@ -208,7 +210,19 @@ function processImage(input) {
                 }
               }
               else {
-                console.log(".........")
+                console.log("NO JUNCTIONS")
+              }
+              
+              if (line[0] > -1 && line[1] > -1 && line[2] > -1) {
+                var vectorX = math.cos(line[2]) * 2
+                var vectorY = math.sin(line[2]) * 2
+              
+                for (var i=1; i<20; i++) {
+                    image.setPixelColor(jimp.rgbaToInt(255,0,0,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
+                }
+              }
+              else {
+                console.log("NO LINES")
               }
               
               markBlobs(image)
@@ -393,7 +407,6 @@ function checkEdge(image, x, y) {
 
 function analyzeBlobs() {
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        
         blobsFound.blobs[i].calculateCenter()
         
         if (blobsFound.blobs[i].aspects[7] == 1) {
@@ -406,10 +419,46 @@ function analyzeBlobs() {
 }
 
 function findLines() {
+    var bestLine = [2]
+    bestLine[0] = 0
+    bestLine[1] = 0
     
+    for (var i=0; i<blobsFound.blobs.length; i++) {
+        if (blobsFound.blobs[i].aspects[7] == 1 && blobsFound.blobs[i].links.length > 5) {
+            if (blobsFound.blobs[i].aspects[5] > bestLine[0]) {
+                bestLine[0] = blobsFound.blobs[i].aspects[5]
+                bestLine[1] = i
+            }
+        }
+    }
+    
+    if (blobsFound.blobs.length > 0) {
+        var lineHeading = blobsFound.blobs[bestLine[1]].aspects[6]
+        var angleDifference = abs((math.pi*0.5) - lineHeading)
+        
+        if (angleDifference > math.pi) {
+            angleDifference = (2*math.pi) - angleDifference
+        }
+        if (angleDifference > 0.5*math.pi) {
+            lineHeading += math.pi
+        }
+        
+        if (lineHeading > 2*math.pi) {
+            lineHeading -= 2*math.pi
+        }
+        
+        var lineData = [blobsFound.blobs[bestLine[1]].aspects[0],blobsFound.blobs[bestLine[1]].aspects[1],lineHeading]
+    }
+    else {
+        var lineData = [-1,-1,-1]
+    }
+    
+    return lineData
 }
 
 function findJunctions() {
+    var Jnum = 0
+    
     var bestCircularity = [2]       //circularity, blob#
     bestCircularity[0] = 20
     bestCircularity[1] = 0
@@ -421,8 +470,9 @@ function findJunctions() {
     var bestBlob = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 5) {
-
+        if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 10) {
+            Jnum++
+            
             var circularity = blobsFound.blobs[i].aspects[3]
             if (circularity < bestCircularity[0]) {
                 bestCircularity[0] = circularity
@@ -438,7 +488,7 @@ function findJunctions() {
         }
     }
     
-    if (blobsFound.blobs.length > 0) {
+    if (blobsFound.blobs.length > 0 && Jnum > 0) {
         /*if (bestCircularity[1] == bestDensity[1]) {
             bestBlob = bestCircularity[1]
         }
@@ -458,7 +508,6 @@ function findJunctions() {
     }
     else {
         var junctionData =[-1,-1,-1]
-        console.log("...")
     }
     
     return junctionData
