@@ -20,19 +20,21 @@
     √ Get blob line
     √ Find blob line direction
     √ Mark path
+    • Test + fix path marking
     • Use Ø(droneDirection-blobDirection) to control Yaw angle
-    • Use bottom camera
+    √ Use bottom camera
     • Incorporate second color for junctions, with original functions
  
 */
 
-//COLORS USED:
+//COLOR KEY:
 /*
-        WHITE: line marker
-        GRAY:  junction marker
-        RED:   radius
-        BLUE:  center
-        GREEN: edge
+        WHITE:  line marker
+        GRAY:   junction marker
+        RED:    radius
+        BLUE:   center, best path estimation
+        YELLOW: path direction head
+        GREEN:  edge
  */
 
 var ardrone = require('ar-drone')
@@ -218,8 +220,10 @@ function processImage(input) {
                 var vectorY = math.sin(line[2]) * 2
               
                 for (var i=1; i<20; i++) {
-                    image.setPixelColor(jimp.rgbaToInt(255,0,0,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
+                    image.setPixelColor(jimp.rgbaToInt(0,100,255,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
                 }
+                image.setPixelColor(jimp.rgbaToInt(255,255,0,255),line[0] + math.round(vectorX*20),line[1] + math.round(vectorY*20))
+                console.log("PATH: " + line[2])
               }
               else {
                 console.log("NO LINES")
@@ -241,7 +245,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 0.7 && color.r / color.g > (color1[0]/color1[1]) - 0.25 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.35 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
@@ -276,7 +280,7 @@ function markBlobs(image) {
         if (blobsFound.blobs[i].links.length > 5) {
             var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
             
-            image.setPixelColor(jimp.rgbaToInt(0,100,255,255),location[0],location[1])
+            image.setPixelColor(jimp.rgbaToInt(0,100,255,255),math.round(location[0]),math.round(location[1]))
             
             for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
                 location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
@@ -419,6 +423,7 @@ function analyzeBlobs() {
 }
 
 function findLines() {
+    var Lnum = 0;
     var bestLine = [2]
     bestLine[0] = 0
     bestLine[1] = 0
@@ -429,12 +434,13 @@ function findLines() {
                 bestLine[0] = blobsFound.blobs[i].aspects[5]
                 bestLine[1] = i
             }
+            Lnum++
         }
     }
     
-    if (blobsFound.blobs.length > 0) {
+    if (blobsFound.blobs.length > 0 && Lnum > 0) {
         var lineHeading = blobsFound.blobs[bestLine[1]].aspects[6]
-        var angleDifference = abs((math.pi*0.5) - lineHeading)
+        var angleDifference = math.abs((math.pi*1.5) - lineHeading)
         
         if (angleDifference > math.pi) {
             angleDifference = (2*math.pi) - angleDifference
@@ -637,7 +643,7 @@ Blob.prototype.calculateLinenessDirection = function() {
     
     this.aspects[5] = lineness
     
-    var angle = math.atan2(math.abs(arrow[0]), math.abs(arrow[1]))
+    var angle = math.atan2(math.abs(arrow[1]), math.abs(arrow[0]))
     
     if (arrow[0] < 0 && arrow[1] > 0) {
         angle = math.pi - angle
