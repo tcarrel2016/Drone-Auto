@@ -20,7 +20,7 @@
     √ Get blob line
     √ Find blob line direction
     √ Mark path
-    • Test + fix path marking
+    √ Test + fix path marking
     • Use Ø(droneDirection-blobDirection) to control Yaw angle
     √ Use bottom camera
     • Incorporate second color for junctions, with original functions
@@ -43,7 +43,6 @@ var math = require('./mathjs-master/index.js')  //Comprehensive math library (us
 
 var client = ardrone.createClient()
 var pngImage
-var output
 var markerX = -1
 var markerY = -1
 var markerR = -1
@@ -70,125 +69,45 @@ pngStream
     
     console.log(String(count))
     
-    if (count < 300 && count > 25) {
+    if (count < 300 && count > 50) {
         processImage(incoming)
-    
-        /*
         client.stop()
     
-        if (markerX > -1) {
-            if (markerX > 320 + 80) {
-                client.right(0.06)
-                previousX = 1
-                console.log("RIGHT")
-            }
-            else if (markerX < 320 - 80) {
-                client.left(0.06)
-                previousX = -1
-                console.log("LEFT")
-            }
-            else {
-                if (previousX < 0) {
-                    client.right(0.1)
-                }
-                else if (previousX > 0) {
-                    client.left(0.1)
-                }
-                console.log("HOVER")
-                previousX = 0
-            }
-        }
-        else {
-            if (previousX < 0) {
-                client.right(0.1)
-            }
-            else if (previousX > 0) {
-                client.left(0.1)
-            }
-            console.log("NO X")
-            previousX = 0
-        }
-
-        if (markerY > -1) {
-            if (markerY > 180 + 20) {
-                client.down(0.15)
-                previousY = 1
-                console.log("DOWN")
-            }
-            else if (markerY < 180 - 20) {
-                client.up(0.15)
-                previousY = -1
-                console.log("UP")
-            }
-            else {
-                if (previousY < 0) {
-                    client.down(0.2)
-                }
-                else if (previousY > 0) {
-                    client.up(0.2)
-                }
-                console.log("HOVER")
-                previousY = 0
-            }
-        }
-        else {
-            if (previousY < 0) {
-                client.down(0.2)
-            }
-            else if (previousY > 0) {
-                client.up(0.2)
-            }
-            console.log("NO Y")
-            previousY = 0
-        }
+        if (pathA > -1) {
+            var angleV = math.pi * 1.5
+            angleV = pathA - angleV
     
-        if (markerR > -1) {
-            if (markerR > 30 + 5) {
-                client.back(0.02)
-                previousZ = -1
-                console.log("BACK")
-            }
-            else if (markerR < 30 - 5) {
-                client.front(0.02)
-                previousZ = 1
-                console.log("FORTH")
-            }
-            else {
-                if (previousZ < 0) {
-                    client.front(0.04)
+            if (math.abs(angleV) > (math.pi*0.1)) {
+                if (math.abs(angleV) < (math.pi*0.5)) {
+                    if (angleV > 0) {
+                        client.clockwise(0.2)
+                    }
+                    else if (angleV < 0) {
+                        client.counterClockwise(0.2)
+                    }
                 }
-                else if (previousZ > 0) {
-                    client.back(0.04)
+                else {
+                    console.log("PATH TOO FAR!")
                 }
-                console.log("HOVER")
-                previousZ = 0
             }
         }
-        else {
-            if (previousZ < 0) {
-                client.front(0.04)
-            }
-            else if (previousZ > 0) {
-                client.back(0.04)
-            }
-            console.log("HOVER")
-            previousZ = 0
-        }
-        */
-        console.log("#Blobs: " + String(blobsFound.blobs.length))
-        
+    }
+    else if (count < 30) {
+        client.stop()
+        client.down(0.1)
+        client.front(0.01)
     }
     else {
         if (count > 300 || count == 300) {
-            //client.stop()
-            //client.land()
+            client.stop()
+            client.land()
         }
     }
     
     count++
     })
 
-//client.takeoff()
+client.takeoff()
 
 
 //....................................................................................................
@@ -216,8 +135,8 @@ function processImage(input) {
               }
               
               if (line[0] > -1 && line[1] > -1 && line[2] > -1) {
-                var vectorX = math.cos(line[2]) * 2
-                var vectorY = math.sin(line[2]) * 2
+                var vectorX = math.cos(line[2]) * 1
+                var vectorY = math.sin(line[2]) * 1
               
                 for (var i=1; i<20; i++) {
                     image.setPixelColor(jimp.rgbaToInt(0,100,255,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
@@ -234,10 +153,11 @@ function processImage(input) {
               if (count % 5 == 0) {
                 image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
               }
-              output = marker
-              markerX = output[0]
-              markerY = output[1]
-              markerR = output[2]
+              //output = marker
+              markerX = marker[0]
+              markerY = marker[1]
+              markerR = marker[2]
+              pathA = line[2]
               })
 }
 
@@ -245,7 +165,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.35 && color.r / color.g < (color1[0]/color1[1]) + 0.8) {     //ORANGE, optimized for band room
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.6 && color.r / color.g < (color1[0]/color1[1]) + 1) {     //ORANGE, optimized for band room
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
