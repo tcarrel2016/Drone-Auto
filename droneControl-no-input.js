@@ -24,6 +24,8 @@
     • Use Ø(droneDirection-blobDirection) to control Yaw angle
     √ Use bottom camera
     • Incorporate second color for junctions, with original functions
+    • Try getting navdata for its status, its position, speed, engine rotation speed, etc. to control more accurately it's drift
+    • Figure out how to read navdata (it's not a straight string...)
  
 */
 
@@ -40,6 +42,11 @@
 var ardrone = require('ar-drone')
 var jimp = require('./jimp-master/index.js')
 var math = require('./mathjs-master/index.js')  //Comprehensive math library (used for square root, exponents, absolute value, vector math, etc.)
+
+//Navdata
+var altitude = 0.000
+var orientation = [0.000,0.000,0.000]
+var velocity = [0.000,0.000,0.000]
 
 var client = ardrone.createClient()
 var pngImage
@@ -66,17 +73,43 @@ var pngStream = client.getPngStream()
 pngStream
 .on("error", console.log)
 .on("data", function(incoming) {
+    processImage(incoming)
+    })
+
+client.on("navdata", function(navdata) {
+          console.log(navdata)
+          getMotionData(navdata)
+          controlFlight()
+          })
+
+//client.takeoff()
+
+//....................................................................................................
+
+function getMotionData(navdata) {
+    if (count > 30) {
+        orientation[0] = navdata.demo.rotation.roll
+        orientation[1] = navdata.demo.rotation.pitch
+        orientation[2] = navdata.demo.rotation.yaw
+        velocity[0] = navdata.demo.velocity.x
+        velocity[1] = navdata.demo.velocity.y
+        velocity[2] = navdata.demo.velocity.z
     
+        console.log("orientation: " + orientation)
+        console.log("velocity: " + velocity)
+    }
+}
+
+function controlFlight() {
     console.log(String(count))
-    
-    if (count < 300 && count > 50) {
-        processImage(incoming)
+    /*
+    if (count < 300) {
         client.stop()
-    
+        
         if (pathA > -1) {
             var angleV = math.pi * 1.5
             angleV = pathA - angleV
-    
+            
             if (math.abs(angleV) > (math.pi*0.1)) {
                 if (math.abs(angleV) < (math.pi*0.5)) {
                     if (angleV > 0) {
@@ -92,25 +125,15 @@ pngStream
             }
         }
     }
-    else if (count < 30) {
-        client.stop()
-        client.down(0.1)
-        client.front(0.01)
-    }
     else {
-        if (count > 300 || count == 300) {
+        if ((count > 300 || count == 300) && count < 310) {
             client.stop()
             client.land()
         }
-    }
+    }*/
     
     count++
-    })
-
-client.takeoff()
-
-
-//....................................................................................................
+}
 
 function processImage(input) {
     pngImage = input
@@ -131,7 +154,7 @@ function processImage(input) {
                 }
               }
               else {
-                console.log("NO JUNCTIONS")
+                //console.log("NO JUNCTIONS")
               }
               
               if (line[0] > -1 && line[1] > -1 && line[2] > -1) {
@@ -142,10 +165,10 @@ function processImage(input) {
                     image.setPixelColor(jimp.rgbaToInt(0,100,255,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
                 }
                 image.setPixelColor(jimp.rgbaToInt(255,255,0,255),line[0] + math.round(vectorX*20),line[1] + math.round(vectorY*20))
-                console.log("PATH: " + line[2])
+                //console.log("PATH: " + line[2])
               }
               else {
-                console.log("NO LINES")
+                //console.log("NO LINES")
               }
               
               markBlobs(image)
