@@ -25,7 +25,9 @@
     √ Use bottom camera
     • Incorporate second color for junctions, with original functions
     • Try getting navdata for its status, its position, speed, engine rotation speed, etc. to control more accurately it's drift
-    • Figure out how to read navdata (it's not a straight string...)
+    √ Figure out how to read navdata (it's not a straight string...)
+    √ Use edge pixels when finding junctions and clean up analyzeBlobs()
+    • Incorporate navdata to help hovering
  
 */
 
@@ -46,7 +48,7 @@ var math = require('./mathjs-master/index.js')  //Comprehensive math library (us
 //Navdata
 var altitude = 0.000
 var orientation = [0.000,0.000,0.000]
-var velocity = [0.000,0.000,0.000]
+var velocity = [0.000,0.000,0.000]      //not working
 
 var client = ardrone.createClient()
 var pngImage
@@ -77,14 +79,13 @@ pngStream
     })
 
 client.on("navdata", function(navdata) {
-          console.log(navdata)
           getMotionData(navdata)
           controlFlight()
           })
 
-//client.takeoff()
+client.takeoff()
 
-//....................................................................................................
+//.................................................................... DECLARATION
 
 function getMotionData(navdata) {
     if (count > 30) {
@@ -95,14 +96,14 @@ function getMotionData(navdata) {
         velocity[1] = navdata.demo.velocity.y
         velocity[2] = navdata.demo.velocity.z
     
-        console.log("orientation: " + orientation)
-        console.log("velocity: " + velocity)
+        console.log("   orientation: " + orientation)
+        console.log("       velocity: " + velocity)
     }
 }
 
 function controlFlight() {
     console.log(String(count))
-    /*
+    
     if (count < 300) {
         client.stop()
         
@@ -123,6 +124,23 @@ function controlFlight() {
                     console.log("PATH TOO FAR!")
                 }
             }
+            else {  //CENTER OVER THE PATH OR MOVE FORWARD
+                
+            }
+        }
+        else {  //HOVER
+            if (orientation[0] < 0) {
+                
+            }
+            else {
+                
+            }
+            if (orientation[1] < 0) {
+                
+            }
+            else {
+                
+            }
         }
     }
     else {
@@ -130,7 +148,7 @@ function controlFlight() {
             client.stop()
             client.land()
         }
-    }*/
+    }
     
     count++
 }
@@ -165,7 +183,7 @@ function processImage(input) {
                     image.setPixelColor(jimp.rgbaToInt(0,100,255,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
                 }
                 image.setPixelColor(jimp.rgbaToInt(255,255,0,255),line[0] + math.round(vectorX*20),line[1] + math.round(vectorY*20))
-                //console.log("PATH: " + line[2])
+                console.log("path: " + line[2])
               }
               else {
                 //console.log("NO LINES")
@@ -176,7 +194,7 @@ function processImage(input) {
               if (count % 5 == 0) {
                 image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
               }
-              //output = marker
+              
               markerX = marker[0]
               markerY = marker[1]
               markerR = marker[2]
@@ -188,10 +206,10 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.6 && color.r / color.g < (color1[0]/color1[1]) + 1) {     //ORANGE, optimized for band room
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.6 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.6 && color.r / color.g < (color1[0]/color1[1]) + 1) {     //ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
-            /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {
+            /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {  //GREEN
                 image.setPixelColor(jimp.rgbaToInt(100,100,100,255),x,y)
             }*/
             else {
@@ -212,7 +230,13 @@ function findBlobs(image) {
             
             if (color.b > 0) {
                 blobsFound.addBlob(1)
-                checkLinks(image, x, y, 0)
+                
+                if (color.b == 255) {
+                    checkLinks(image, x, y, 0, 1)
+                }
+                else if (color.b == 100) {
+                    checkLinks(image, x, y, 0, 2)
+                }
             }
         }
     }
@@ -233,7 +257,7 @@ function markBlobs(image) {
     }
 }
 
-function checkLinks(image, x, y, direction) {       //This needs to be changed to take in two arguments, one for each color being searched
+function checkLinks(image, x, y, direction, type) {
     var inBlob = false
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
@@ -254,40 +278,40 @@ function checkLinks(image, x, y, direction) {       //This needs to be changed t
     }
     else {
         blobsFound.blobs[blobsFound.blobs.length-1].addLink(x,y)
-        checkEdge(image,x,y)
+        checkEdge(image,x,y,type)
         
         if (direction != 0 && y-skipSize > 0) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
             
-            if (color.b > 0) {
-                checkLinks(image, x, y-skipSize, 2)
+            if (color.b == 255) {
+                checkLinks(image, x, y-skipSize, 2, type)
             }
         }
         if (direction != 1 && x+skipSize < image.bitmap.width) {
             var color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
             
-            if (color.b > 0) {
-                checkLinks(image, x+skipSize, y, 3)
+            if (color.b == 255) {
+                checkLinks(image, x+skipSize, y, 3, type)
             }
         }
         if (direction != 2 && y+skipSize < image.bitmap.height) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
             
-            if (color.b > 0) {
-                checkLinks(image, x, y+skipSize, 0)
+            if (color.b == 255) {
+                checkLinks(image, x, y+skipSize, 0, type)
             }
         }
         if (direction != 3 && x-skipSize > 0) {
             var color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
             
-            if (color.b > 0) {
-                checkLinks(image, x-skipSize, y, 1)
+            if (color.b == 255) {
+                checkLinks(image, x-skipSize, y, 1, type)
             }
         }
     }
 }
 
-function checkEdge(image, x, y) {
+function checkEdge(image, x, y, type) {
     var neighbors = 0
     var color
     
@@ -354,13 +378,13 @@ function checkEdge(image, x, y) {
 
 function analyzeBlobs() {
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        blobsFound.blobs[i].calculateCenter()
+        blobsFound.blobs[i].calculateCenterRadii()
         
         if (blobsFound.blobs[i].aspects[7] == 1) {
-            blobsFound.blobs[i].calculateLinenessDirection()
+            blobsFound.blobs[i].calculateLinearityDirection()
         }
         else if (blobsFound.blobs[i].aspects[7] == 2) {
-            blobsFound.blobs[i].calculateRadiusCircularityDensity()
+            blobsFound.blobs[i].calculateCircularity()
         }
     }
 }
@@ -372,7 +396,7 @@ function findLines() {
     bestLine[1] = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].aspects[7] == 1 && blobsFound.blobs[i].links.length > 5) {
+        if (blobsFound.blobs[i].aspects[7] == 1 && blobsFound.blobs[i].links.length > 10) {
             if (blobsFound.blobs[i].aspects[5] > bestLine[0]) {
                 bestLine[0] = blobsFound.blobs[i].aspects[5]
                 bestLine[1] = i
@@ -419,7 +443,7 @@ function findJunctions() {
     var bestBlob = 0
     
     for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 10) {
+        if (blobsFound.blobs[i].aspects[7] == 2 && blobsFound.blobs[i].links.length > 20) {
             Jnum++
             
             var circularity = blobsFound.blobs[i].aspects[3]
@@ -429,30 +453,11 @@ function findJunctions() {
                 bestBlob = i
             }
             
-            var density = blobsFound.blobs[i].aspects[4]
-            /*if (density > bestDensity[0]) {
-                bestDensity[0] = density
-                bestDensity[1] = i
-            }*/
+            var density = blobsFound.blobs[i].aspects[4]    //Not used right now...
         }
     }
     
     if (blobsFound.blobs.length > 0 && Jnum > 0) {
-        /*if (bestCircularity[1] == bestDensity[1]) {
-            bestBlob = bestCircularity[1]
-        }
-        else {
-            var score1 = (blobsFound.blobs[bestCircularity[1]].aspects[4]) - bestCircularity[0]
-            var score2 = bestDensity[0] - blobsFound.blobs[bestDensity[1]].aspects[3]
-            
-            if (score1 > score2) {
-                bestBlob = bestCircularity[1]
-            }
-            else {
-                bestBlob = bestDensity[1]
-            }
-        }*/
-        
         var junctionData = [blobsFound.blobs[bestBlob].aspects[0],blobsFound.blobs[bestBlob].aspects[1],blobsFound.blobs[bestBlob].aspects[2]]
     }
     else {
@@ -473,13 +478,14 @@ BlobLibrary.prototype.addBlob = function(color) {
 function Blob(color) {
     this.links = []
     this.edges = []
+    this.radii = []
     this.aspects = [8]
     this.aspects[0] = 320   //X
     this.aspects[1] = 200   //Y
     this.aspects[2] = 50    //R adius
     this.aspects[3] = 3     //C ircularity
     this.aspects[4] = 5     //D ensity
-    this.aspects[5] = 0     //L ine-ness
+    this.aspects[5] = 0     //L inearity
     this.aspects[6] = 0     //A ngle
     this.aspects[7] = color //C olor (1=line,2=junction)
 }
@@ -492,9 +498,10 @@ Blob.prototype.addEdge = function(x, y) {
     this.edges = this.edges.concat(new Link(x, y))
 }
 
-Blob.prototype.calculateCenter = function() {
+Blob.prototype.calculateCenterRadii = function() {
     var X = 0
     var Y = 0
+    var edgeRadii = [this.edges.length]
     
     for (var i=0; i<this.links.length; i++) {
         X += this.links[i].x
@@ -506,69 +513,48 @@ Blob.prototype.calculateCenter = function() {
     
     this.aspects[0] = X
     this.aspects[1] = Y
+    
+    for (var i=0; i<this.edges.length; i++) {
+        var edgeRadius = math.sqrt(math.pow(this.edges[i].x - this.aspects[0],2) + math.pow(this.edges[i].y - this.aspects[1],2))
+        edgeRadii[i] = edgeRadius
+    }
+    
+    this.radii = edgeRadii
+    
+    if (this.radii.length > 0) {
+        var avgRadius = 0
+        
+        for (var i=0; i<this.radii.length; i++) {
+            avgRadius += this.radii[i]
+        }
+        avgRadius /= this.radii.length
+        
+        this.aspects[2] = avgRadius
+    }
 }
 
-Blob.prototype.calculateRadiusCircularityDensity = function() {
-    var L = 0;
-    var R = 0;
-    var U = 0;
-    var D = 0;
-    
-    for (var i=0; i<this.links.length; i++) {
-        if (this.aspects[0] - this.links[i].x > L) {
-            L = this.aspects[0] - this.links[i].x
+Blob.prototype.calculateCircularity = function() {
+    if (this.radii.length > 0) {
+        var avgDifference = 0
+        
+        for (var i=0; i<this.radii.length; i++) {
+            avgDifference += (this.radii[i] - this.aspects[2])
         }
-        if (this.links[i].x - this.aspects[0] > R) {
-            R = this.links[i].x - this.aspects[0]
-        }
-        if (this.aspects[1] - this.links[i].y > U) {
-            U = this.aspects[1] - this.links[i].y
-        }
-        if (this.links[i].y - this.aspects[1] > D) {
-            D = this.links[i].y - this.aspects[1]
-        }
+        avgDifference /= this.radii.length
+        
+        this.aspects[3] = avgDifference
     }
-    
-    this.aspects[2] = (L+R+U+D) / 4;
-    
-    if (L-this.aspects[2] < 0) {
-        L = -1 * (L-this.aspects[2])
-    }
-    else {
-       L = (L-this.aspects[2])
-    }
-    if (R-this.aspects[2] < 0) {
-        R = -1 * (R-this.aspects[2])
-    }
-    else {
-        R = (R-this.aspects[2])
-    }
-    if (U-this.aspects[2] < 0) {
-        U = -1 * (U-this.aspects[2])
-    }
-    else {
-        U = (U-this.aspects[2])
-    }
-    if (D-this.aspects[2] < 0) {
-        D = -1 * (D-this.aspects[2])
-    }
-    else {
-        D = (D-this.aspects[2])
-    }
-    
-    this.aspects[3] = (L+R+U+D) / 4;
     
     this.aspects[4] = this.links.length / this.aspects[2]
 }
 
-Blob.prototype.calculateLinenessDirection = function() {
-    var edgeRadii = [this.edges.length]
+Blob.prototype.calculateLinearityDirection = function() {
     var shortest = 700
     var longest = 0
     var arrow = [1,1]
     
-    for (var i=0; i<this.edges.length; i++) {
-        var edgeRadius = math.sqrt(math.pow(this.edges[i].x - this.aspects[0],2) + math.pow(this.edges[i].y - this.aspects[1],2))
+    for (var i=0; i<this.radii.length; i++) {
+        var edgeRadius = this.radii[i]
         
         if (edgeRadius < shortest) {
             shortest = edgeRadius
@@ -578,13 +564,11 @@ Blob.prototype.calculateLinenessDirection = function() {
             arrow[0] = this.edges[i].x - this.aspects[0]
             arrow[1] = this.edges[i].y - this.aspects[1]
         }
-        
-        edgeRadii[i] = edgeRadius
     }
     
-    var lineness = longest - shortest
+    var linearity = longest - shortest
     
-    this.aspects[5] = lineness
+    this.aspects[5] = linearity
     
     var angle = math.atan2(math.abs(arrow[1]), math.abs(arrow[0]))
     
