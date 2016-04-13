@@ -21,13 +21,14 @@
     √ Find blob line direction
     √ Mark path
     √ Test + fix path marking
-    • Use Ø(droneDirection-blobDirection) to control Yaw angle
+    √ Use Ø(droneDirection-blobDirection) to control Yaw angle
     √ Use bottom camera
     • Incorporate second color for junctions, with original functions
-    • Try getting navdata for its status, its position, speed, engine rotation speed, etc. to control more accurately it's drift
+    √ Try getting navdata for its orientation to control more accurately it's drift
     √ Figure out how to read navdata (it's not a straight string...)
     √ Use edge pixels when finding junctions and clean up analyzeBlobs()
-    • Incorporate navdata to help hovering
+    √ Incorporate navdata to help hovering
+    ? Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
  
 */
 
@@ -48,13 +49,16 @@ var math = require('./mathjs-master/index.js')  //Comprehensive math library (us
 //Navdata
 var altitude = 0.000
 var orientation = [0.000,0.000,0.000]
+var origin = [0,0,0]
 var velocity = [0.000,0.000,0.000]      //not working
 
 var client = ardrone.createClient()
-var pngImage
+var pngImage   //640*360
 var markerX = -1
 var markerY = -1
 var markerR = -1
+var pathX = -1
+var pathY = -1
 var pathA = -1
 var erosionFactor = 2
 var count = 0
@@ -81,23 +85,33 @@ pngStream
 client.on("navdata", function(navdata) {
           getMotionData(navdata)
           controlFlight()
+          count++
           })
 
-client.takeoff()
+if (count < 30) {
+    client.takeoff()
+}
 
 //.................................................................... DECLARATION
 
 function getMotionData(navdata) {
-    if (count > 30) {
-        orientation[0] = navdata.demo.rotation.roll
-        orientation[1] = navdata.demo.rotation.pitch
-        orientation[2] = navdata.demo.rotation.yaw
-        velocity[0] = navdata.demo.velocity.x
-        velocity[1] = navdata.demo.velocity.y
-        velocity[2] = navdata.demo.velocity.z
-    
-        console.log("   orientation: " + orientation)
-        console.log("       velocity: " + velocity)
+    if (count > 20) {
+        if (count < 30) {
+            origin[0] = navdata.demo.rotation.roll
+            origin[1] = navdata.demo.rotation.pitch
+            origin[2] = navdata.demo.rotation.yaw
+        }
+        else {
+            orientation[0] = navdata.demo.rotation.roll
+            orientation[1] = navdata.demo.rotation.pitch
+            orientation[2] = navdata.demo.rotation.yaw
+            velocity[0] = navdata.demo.velocity.x
+            velocity[1] = navdata.demo.velocity.y
+            velocity[2] = navdata.demo.velocity.z
+            
+//            console.log("   orientation: " + orientation)
+//            console.log("       velocity: " + velocity)
+        }
     }
 }
 
@@ -107,11 +121,35 @@ function controlFlight() {
     if (count < 300) {
         client.stop()
         
-        if (pathA > -1) {
+        if (pathA > -1 && pathX > -1 && pathY > -1) {
+            var distance = math.sqrt(math.pow(pathX,2) + math.pow(pathY,2))
             var angleV = math.pi * 1.5
             angleV = pathA - angleV
-            
-            if (math.abs(angleV) > (math.pi*0.1)) {
+
+            if (distance > 360/4) { //CENTER OVER THE PATH OR MOVE FORWARD
+                var xV = pathX - (640*0.5)
+                var yV = pathY - (320*0.5)
+                
+                xV /= math.abs(xV)
+                yV /= math.abs(yV)
+                
+                xV *= 0.1
+                yV *= 0.1
+                
+                if (xV > 0) {
+                    client.right(xV)
+                }
+                else {
+                    client.left(math.abs(xV))
+                }
+                if (yV > 0) {
+                    client.back(yV)
+                }
+                else {
+                    client.front(math.abs(yV))
+                }
+            }
+            else if (math.abs(angleV) > (math.pi*0.1)) {     //ROTATE
                 if (math.abs(angleV) < (math.pi*0.5)) {
                     if (angleV > 0) {
                         client.clockwise(0.2)
@@ -124,22 +162,33 @@ function controlFlight() {
                     console.log("PATH TOO FAR!")
                 }
             }
-            else {  //CENTER OVER THE PATH OR MOVE FORWARD
-                
+            else {  //HOVER
+                if (orientation[0] < origin[0]-4) {
+                    client.right(0.1)
+                }
+                else if (orientation[0] > origin[0]+4) {
+                    client.left(0.1)
+                }
+                if (orientation[1] < origin[1]-4) {
+                    client.back(0.1)
+                }
+                else if (orientation[1] >origin[1]+4) {
+                    client.front(0.1)
+                }
             }
         }
         else {  //HOVER
-            if (orientation[0] < 0) {
-                
+            if (orientation[0] < origin[0]-4) {
+                client.right(0.1)
             }
-            else {
-                
+            else if (orientation[0] > origin[0]+4) {
+                client.left(0.1)
             }
-            if (orientation[1] < 0) {
-                
+            if (orientation[1] < origin[1]-4) {
+                client.back(0.1)
             }
-            else {
-                
+            else if (orientation[1] > origin[1]+4) {
+                client.front(0.1)
             }
         }
     }
@@ -149,8 +198,6 @@ function controlFlight() {
             client.land()
         }
     }
-    
-    count++
 }
 
 function processImage(input) {
@@ -158,7 +205,8 @@ function processImage(input) {
     jimp.read(pngImage, function(err, image) {
               if (err) throw err
               image = thresholdImage(image)
-              findBlobs(image)
+              //findBlobs(image)
+              findBlobsNoRecursion(image)
               analyzeBlobs()
               var line = findLines()
               var marker = findJunctions()
@@ -186,18 +234,20 @@ function processImage(input) {
                 console.log("path: " + line[2])
               }
               else {
-                //console.log("NO LINES")
+                console.log("NO LINES")
               }
               
               markBlobs(image)
               
-              if (count % 5 == 0) {
+              if (count % 2 == 0) {
                 image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
               }
               
               markerX = marker[0]
               markerY = marker[1]
               markerR = marker[2]
+              pathX = line[0]
+              pathY = line[1]
               pathA = line[2]
               })
 }
@@ -221,6 +271,148 @@ function thresholdImage(image) {
     return image
 }
 
+function findBlobsNoRecursion(image) {
+    blobsFound.blobs = []
+    
+    for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
+        for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
+            var color = jimp.intToRGBA(image.getPixelColor(x,y))
+            var inBlob = true
+            
+            if (color.b > 0) {                                      //type1 = 255, type2 = 100
+                for (var i=0; i<blobsFound.blobs.length; i++) {
+                    for (var j=0; j<blobsFound.blobs[i].links.length; j++) {
+                        if (blobsFound.blobs[i].links[j].x == x && blobsFound.blobs[i].links[j].y == y) {
+                            inBlob = true
+                        }
+                        if (inBlob) {
+                            break
+                        }
+                    }
+                }
+            }
+            
+            if (!inBlob) {
+                var edges = []
+                var links = []
+                var news = []
+                
+                news.concat(new Link(x,y))
+                
+                while (news.length > 0) {
+                    var len = news.length
+                    
+                    for (var i = len-1; i > -1; i--) {
+                        if (y-skipSize > 0 && y+skipSize < image.bitmap.height && x-skipSize > 0 && x+skipSize < image.bitmap.width) {
+                            var x = news[i].x
+                            var y = news[i].y
+                            
+                            color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
+                            if (color.b == 255) {
+                                news.concat(new Link(x,y-skipSize))
+                            }
+                            
+                            color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
+                            if (color.b == 255) {
+                                news.concat(new Link(x,y+skipSize))
+                            }
+                            
+                            color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
+                            if (color.b == 255) {
+                                news.concat(new Link(x-skipSize,y))
+                            }
+                            
+                            color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
+                            if (color.b == 255) {
+                                news.concat(new Link(x+skipSize,y))
+                            }
+                        }
+                        
+                        if (isEdge(image,x,y,1)) {
+                            edges.concat(new Link(x,y))
+                        }
+                        
+                        links.concat(news[i])
+                        news.splice(i,1)
+                    }
+                }
+                
+                blobsFound.addBlob(1)
+                blobsFound.blobs[blobsFound.blobs.length-1].links = links
+                blobsFound.blobs[blobsFound.blobs.length-1].edges = edges
+            }
+        }
+    }
+}
+
+function isEdge(image, x, y, type) {
+    var neighbors = 0
+    var color
+    
+    if (x+skipSize < image.bitmap.width && y-skipSize > 0) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y-skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (x+skipSize < image.bitmap.width) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (x+skipSize < image.bitmap.width && y+skipSize < image.bitmap.height) {
+        color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y+skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (y+skipSize < image.bitmap.height) {
+        color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (x-skipSize > 0 && y+skipSize < image.bitmap.height) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y+skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (x-skipSize > 0) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (x-skipSize >0 && y-skipSize > 0) {
+        color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y-skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (y-skipSize > 0) {
+        color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
+        if (color.b == 255) {
+            neighbors++
+        }
+    }
+    
+    if (neighbors > 1 && neighbors < 7) {
+        return true
+    }
+    else {
+        return false
+    }
+}
+
 function findBlobs(image) {
     blobsFound.blobs = []
     
@@ -237,21 +429,6 @@ function findBlobs(image) {
                 else if (color.b == 100) {
                     checkLinks(image, x, y, 0, 2)
                 }
-            }
-        }
-    }
-}
-
-function markBlobs(image) {
-    for (var i=0; i<blobsFound.blobs.length; i++) {
-        if (blobsFound.blobs[i].links.length > 5) {
-            var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
-            
-            image.setPixelColor(jimp.rgbaToInt(0,100,255,255),math.round(location[0]),math.round(location[1]))
-            
-            for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
-                location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
-                image.setPixelColor(jimp.rgbaToInt(0,255,0,255),location[0],location[1])
             }
         }
     }
@@ -277,35 +454,37 @@ function checkLinks(image, x, y, direction, type) {
         }
     }
     else {
-        blobsFound.blobs[blobsFound.blobs.length-1].addLink(x,y)
-        checkEdge(image,x,y,type)
+        if (blobsFound.blobs[blobsFound.blobs.length-1].links.length < 1000) {
+            blobsFound.blobs[blobsFound.blobs.length-1].addLink(x,y)
+            checkEdge(image,x,y,type)
         
-        if (direction != 0 && y-skipSize > 0) {
-            var color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
-            
-            if (color.b == 255) {
-                checkLinks(image, x, y-skipSize, 2, type)
+            if (direction != 0 && y-skipSize > 0) {
+                var color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
+                
+                if (color.b == 255) {
+                    checkLinks(image, x, y-skipSize, 2, type)
+                }
             }
-        }
-        if (direction != 1 && x+skipSize < image.bitmap.width) {
-            var color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
-            
-            if (color.b == 255) {
-                checkLinks(image, x+skipSize, y, 3, type)
+            if (direction != 1 && x+skipSize < image.bitmap.width) {
+                var color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
+                
+                if (color.b == 255) {
+                    checkLinks(image, x+skipSize, y, 3, type)
+                }
             }
-        }
-        if (direction != 2 && y+skipSize < image.bitmap.height) {
-            var color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
-            
-            if (color.b == 255) {
-                checkLinks(image, x, y+skipSize, 0, type)
+            if (direction != 2 && y+skipSize < image.bitmap.height) {
+                var color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
+                
+                if (color.b == 255) {
+                    checkLinks(image, x, y+skipSize, 0, type)
+                }
             }
-        }
-        if (direction != 3 && x-skipSize > 0) {
-            var color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
-            
-            if (color.b == 255) {
-                checkLinks(image, x-skipSize, y, 1, type)
+            if (direction != 3 && x-skipSize > 0) {
+                var color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
+                
+                if (color.b == 255) {
+                    checkLinks(image, x-skipSize, y, 1, type)
+                }
             }
         }
     }
@@ -371,8 +550,23 @@ function checkEdge(image, x, y, type) {
         }
     }
     
-    if (neighbors > 1 && neighbors < 7) {
+    if (neighbors > 1 && neighbors < 7 && blobsFound.blobs[blobsFound.blobs.length-1].edges.length < 300) {
         blobsFound.blobs[blobsFound.blobs.length-1].addEdge(x,y)
+    }
+}
+
+function markBlobs(image) {
+    for (var i=0; i<blobsFound.blobs.length; i++) {
+        if (blobsFound.blobs[i].links.length > 5) {
+            var location = [blobsFound.blobs[i].aspects[0],blobsFound.blobs[i].aspects[1]]
+            
+            image.setPixelColor(jimp.rgbaToInt(0,100,255,255),math.round(location[0]),math.round(location[1]))
+            
+            for (var j=0; j<blobsFound.blobs[i].edges.length; j++) {
+                location = [blobsFound.blobs[i].edges[j].x,blobsFound.blobs[i].edges[j].y]
+                image.setPixelColor(jimp.rgbaToInt(0,255,0,255),location[0],location[1])
+            }
+        }
     }
 }
 
