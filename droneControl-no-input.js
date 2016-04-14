@@ -62,7 +62,7 @@ var pathY = -1
 var pathA = -1
 var erosionFactor = 2
 var count = 0
-var skipSize = 3
+var skipSize = 10
 var previousX = 0
 var previousY = 0
 var previousZ = 0
@@ -84,13 +84,13 @@ pngStream
 
 client.on("navdata", function(navdata) {
           getMotionData(navdata)
-          controlFlight()
+          //controlFlight()
           count++
           })
 
-if (count < 30) {
-    client.takeoff()
-}
+//if (count < 30) {
+//    client.takeoff()
+//}
 
 //.................................................................... DECLARATION
 
@@ -138,28 +138,34 @@ function controlFlight() {
                 
                 if (xV > 0) {
                     client.right(xV)
+                    console.log("RIGHT")
                 }
                 else {
                     client.left(math.abs(xV))
+                    console.log("LEFT")
                 }
                 if (yV > 0) {
                     client.back(yV)
+                    console.log("BACK")
                 }
                 else {
                     client.front(math.abs(yV))
+                    console.log("FRONT")
                 }
             }
             else if (math.abs(angleV) > (math.pi*0.1)) {     //ROTATE
                 if (math.abs(angleV) < (math.pi*0.5)) {
                     if (angleV > 0) {
                         client.clockwise(0.2)
+                        console.log("CLOCK")
                     }
                     else if (angleV < 0) {
                         client.counterClockwise(0.2)
+                        console.log("COUNTER")
                     }
                 }
                 else {
-                    console.log("PATH TOO FAR!")
+                    console.log("PATH IS PERPENDICULAR")
                 }
             }
             else {  //HOVER
@@ -175,6 +181,7 @@ function controlFlight() {
                 else if (orientation[1] >origin[1]+4) {
                     client.front(0.1)
                 }
+                console.log("HOVER")
             }
         }
         else {  //HOVER
@@ -190,6 +197,7 @@ function controlFlight() {
             else if (orientation[1] > origin[1]+4) {
                 client.front(0.1)
             }
+            console.log("HOVER")
         }
     }
     else {
@@ -207,6 +215,7 @@ function processImage(input) {
               image = thresholdImage(image)
               //findBlobs(image)
               findBlobsNoRecursion(image)
+              console.log("BLOBS.# = " + blobsFound.blobs.length)
               analyzeBlobs()
               var line = findLines()
               var marker = findJunctions()
@@ -239,9 +248,9 @@ function processImage(input) {
               
               markBlobs(image)
               
-              if (count % 2 == 0) {
-                image.write("./ardroneAutonomousControlOutput/image_" + count + ".png")
-              }
+              //if (count % 2 == 0) {
+                image.write("./droneControlOutput/img_" + count + ".png")
+              //}
               
               markerX = marker[0]
               markerY = marker[1]
@@ -273,13 +282,16 @@ function thresholdImage(image) {
 
 function findBlobsNoRecursion(image) {
     blobsFound.blobs = []
+    var pixNums = [0,0]
     
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            var inBlob = true
+            var inBlob = false
             
             if (color.b > 0) {                                      //type1 = 255, type2 = 100
+                pixNums[0]++
+                
                 for (var i=0; i<blobsFound.blobs.length; i++) {
                     for (var j=0; j<blobsFound.blobs[i].links.length; j++) {
                         if (blobsFound.blobs[i].links[j].x == x && blobsFound.blobs[i].links[j].y == y) {
@@ -291,16 +303,22 @@ function findBlobsNoRecursion(image) {
                     }
                 }
             }
+            else {
+                pixNums[1]++
+            }
             
             if (!inBlob) {
+                console.log("NEW POSSIBLE BLOB FOUND...")
+                
                 var edges = []
                 var links = []
                 var news = []
                 
-                news.concat(new Link(x,y))
+                news.concat(new Link(x,y))  //PROBLEM HERE?
                 
                 while (news.length > 0) {
                     var len = news.length
+                    console.log("...len = " + len + "...")
                     
                     for (var i = len-1; i > -1; i--) {
                         if (y-skipSize > 0 && y+skipSize < image.bitmap.height && x-skipSize > 0 && x+skipSize < image.bitmap.width) {
@@ -334,15 +352,21 @@ function findBlobsNoRecursion(image) {
                         
                         links.concat(news[i])
                         news.splice(i,1)
+                        console.log("...NEW ANALYZED...")
                     }
                 }
                 
-                blobsFound.addBlob(1)
-                blobsFound.blobs[blobsFound.blobs.length-1].links = links
-                blobsFound.blobs[blobsFound.blobs.length-1].edges = edges
+                if (links.length > 5) {
+                    console.log("...BLOB ADDED")
+                    blobsFound.addBlob(1)
+                    blobsFound.blobs[blobsFound.blobs.length-1].links = links
+                    blobsFound.blobs[blobsFound.blobs.length-1].edges = edges
+                }
             }
         }
     }
+    
+    console.log("+: " + pixNums[0] + ", -: " + pixNums[1])
 }
 
 function isEdge(image, x, y, type) {
