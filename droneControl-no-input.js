@@ -28,7 +28,8 @@
     √ Figure out how to read navdata (it's not a straight string...)
     √ Use edge pixels when finding junctions and clean up analyzeBlobs()
     √ Incorporate navdata to help hovering
-    ? Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
+    √ Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
+    • Fix new errors with findBlobsNoRecursion(): out-of-bounds[√], infinitely-large-blob[ ] = problem: pixels that are already links are added as news.
  
 */
 
@@ -215,7 +216,7 @@ function processImage(input) {
               image = thresholdImage(image)
               //findBlobs(image)
               findBlobsNoRecursion(image)
-              console.log("BLOBS.# = " + blobsFound.blobs.length)
+              console.log("TOTAL OUTPUT FROM FINDBLOBSNORECURSION() = " + blobsFound.blobs.length)
               analyzeBlobs()
               var line = findLines()
               var marker = findJunctions()
@@ -284,9 +285,9 @@ function findBlobsNoRecursion(image) {
     blobsFound.blobs = []
     var pixNums = [0,0]
     
-    for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
-        for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
-            var color = jimp.intToRGBA(image.getPixelColor(x,y))
+    for (var startY = 0; startY < image.bitmap.height - skipSize; startY += skipSize) {
+        for (var startX = 0; startX < image.bitmap.width - skipSize; startX += skipSize) {
+            var color = jimp.intToRGBA(image.getPixelColor(startX,startY))
             var inBlob = false
             
             if (color.b > 0) {                                      //type1 = 255, type2 = 100
@@ -294,7 +295,7 @@ function findBlobsNoRecursion(image) {
                 
                 for (var i=0; i<blobsFound.blobs.length; i++) {
                     for (var j=0; j<blobsFound.blobs[i].links.length; j++) {
-                        if (blobsFound.blobs[i].links[j].x == x && blobsFound.blobs[i].links[j].y == y) {
+                        if (blobsFound.blobs[i].links[j].x == startX && blobsFound.blobs[i].links[j].y == startY) {
                             inBlob = true
                         }
                         if (inBlob) {
@@ -307,57 +308,167 @@ function findBlobsNoRecursion(image) {
                 pixNums[1]++
             }
             
-            if (!inBlob) {
-                console.log("NEW POSSIBLE BLOB FOUND...")
-                
+            if (!inBlob && color.b > 0) {
                 var edges = []
                 var links = []
                 var news = []
                 
-                news.concat(new Link(x,y))  //PROBLEM HERE?
+                news.push(new Link(startX,startY))
+                var iteration=0
                 
                 while (news.length > 0) {
                     var len = news.length
-                    console.log("...len = " + len + "...")
                     
                     for (var i = len-1; i > -1; i--) {
+                        var x = news[i].x
+                        var y = news[i].y
+                        
                         if (y-skipSize > 0 && y+skipSize < image.bitmap.height && x-skipSize > 0 && x+skipSize < image.bitmap.width) {
-                            var x = news[i].x
-                            var y = news[i].y
-                            
                             color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
                             if (color.b == 255) {
-                                news.concat(new Link(x,y-skipSize))
+                                var used = false
+                                for (var j=0; j<news.length && !used; j++) {
+                                    if (news[j].x == x && news[j].y == y-skipSize) {
+                                        used = true
+                                        console.log("UP USED new")
+                                    }
+                                    if (used) {
+                                        break
+                                    }
+                                }
+                                if (!used) {
+                                    news.push(new Link(x,y-skipSize))
+                                }
+                                else {
+                                    for (var j=0; j<links.length && !used; j++) {
+                                        if (links[j].x == x && links[j].y == y-skipSize) {
+                                            used = true
+                                            console.log("UP USED linked")
+                                        }
+                                        if (used) {
+                                            break
+                                        }
+                                    }
+                                    if (!used) {
+                                        news.push(new Link(x,y-skipSize))
+                                    }
+                                }
                             }
                             
                             color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
                             if (color.b == 255) {
-                                news.concat(new Link(x,y+skipSize))
+                                var used = false
+                                for (var j=0; j<news.length; j++) {
+                                    if (news[j].x == x && news[j].y == y+skipSize) {
+                                        used = true
+                                        console.log("DOWN USED")
+                                    }
+                                    if (used) {
+                                        break
+                                    }
+                                }
+                                if (!used) {
+                                    news.push(new Link(x,y+skipSize))
+                                }
+                                else {
+                                    for (var j=0; j<links.length; j++) {
+                                        if (links[j].x == x && links[j].y == y+skipSize) {
+                                            used = true
+                                            console.log("DOWN USED")
+                                        }
+                                        if (used) {
+                                            break
+                                        }
+                                    }
+                                    if (!used) {
+                                        news.push(new Link(x,y+skipSize))
+                                    }
+                                }
                             }
                             
                             color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
                             if (color.b == 255) {
-                                news.concat(new Link(x-skipSize,y))
+                                var used = false
+                                for (var j=0; j<news.length; j++) {
+                                    if (news[j].x == x-skipSize && news[j].y == y) {
+                                        used = true
+                                        console.log("LEFT USED")
+                                    }
+                                    if (used) {
+                                        break
+                                    }
+                                }
+                                if (!used) {
+                                    news.push(new Link(x-skipSize,y))
+                                }
+                                else {
+                                    for (var j=0; j<links.length; j++) {
+                                        if (links[j].x == x-skipSize && links[j].y == y) {
+                                            used = true
+                                            console.log("LEFT USED")
+                                        }
+                                        if (used) {
+                                            break
+                                        }
+                                    }
+                                    if (!used) {
+                                        news.push(new Link(x-skipSize,y))
+                                    }
+                                }
                             }
                             
                             color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
                             if (color.b == 255) {
-                                news.concat(new Link(x+skipSize,y))
+                                var used = false
+                                for (var j=0; j<news.length; j++) {
+                                    if (news[j].x == x+skipSize && news[j].y == y) {
+                                        used = true
+                                        console.log("RIGHT USED")
+                                    }
+                                    if (used) {
+                                        break
+                                    }
+                                }
+                                if (!used) {
+                                    news.push(new Link(x+skipSize,y))
+                                }
+                                else {
+                                    for (var j=0; j<links.length; j++) {
+                                        if (links[j].x == x+skipSize && links[j].y == y) {
+                                            used = true
+                                            console.log("RIGHT USED")
+                                        }
+                                        if (used) {
+                                            break
+                                        }
+                                    }
+                                    if (!used) {
+                                        news.push(new Link(x+skipSize,y))
+                                    }
+                                }
                             }
                         }
                         
                         if (isEdge(image,x,y,1)) {
-                            edges.concat(new Link(x,y))
+                            edges.push(new Link(x,y))
                         }
                         
-                        links.concat(news[i])
+                        links.push(news[i])
                         news.splice(i,1)
-                        console.log("...NEW ANALYZED...")
                     }
+                    
+                    console.log("ITERATION: " + iteration)
+//                    for (var k=0; k<news.length; k++) {
+//                        console.log("NEWS[" + k +"] = " + news[k].x + "," + news[k].y)
+//                    }
+//                    for (var k=0; k<links.length; k++) {
+//                        console.log("LINKS[" + k +"] = " + links[k].x + "," + links[k].y)
+//                    }
+                    iteration++
                 }
                 
                 if (links.length > 5) {
-                    console.log("...BLOB ADDED")
+                    console.log("...BLOB ADDED @ " + startX + "," + startY)
                     blobsFound.addBlob(1)
                     blobsFound.blobs[blobsFound.blobs.length-1].links = links
                     blobsFound.blobs[blobsFound.blobs.length-1].edges = edges
