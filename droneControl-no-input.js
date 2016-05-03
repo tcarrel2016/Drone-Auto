@@ -282,18 +282,18 @@ function thresholdImage(image) {
 }
 
 function findBlobsNoRecursion(image) {
-    blobsFound.blobs = []
-    var pixNums = [0,0]
+    blobsFound.blobs = []   //clear blobs from previous image
+    var pixNums = [0,0]     //just to keep track of how many pixels were kept vs. how many were not after thresholding
     
-    for (var startY = 0; startY < image.bitmap.height - skipSize; startY += skipSize) {
-        for (var startX = 0; startX < image.bitmap.width - skipSize; startX += skipSize) {
-            var color = jimp.intToRGBA(image.getPixelColor(startX,startY))
+    for (var startY = 0; startY < image.bitmap.height - skipSize; startY += skipSize) {     //Loop through all pixels (accounting for skipSize) in the image
+        for (var startX = 0; startX < image.bitmap.width - skipSize; startX += skipSize) {  
+            var color = jimp.intToRGBA(image.getPixelColor(startX,startY))  //Get color of current pixel (startX,startY)
             var inBlob = false
             
-            if (color.b > 0) {                                      //type1 = 255, type2 = 100
+            if (color.b > 0) {                                      //**COMMENT NOT FOR MR LIN** type1 = 255, type2 = 100
                 pixNums[0]++
                 
-                for (var i=0; i<blobsFound.blobs.length; i++) {
+                for (var i=0; i<blobsFound.blobs.length; i++) {     //Loop through all blobs found so far to check if current pixel has already been used
                     for (var j=0; j<blobsFound.blobs[i].links.length; j++) {
                         if (blobsFound.blobs[i].links[j].x == startX && blobsFound.blobs[i].links[j].y == startY) {
                             inBlob = true
@@ -308,27 +308,27 @@ function findBlobsNoRecursion(image) {
                 pixNums[1]++
             }
             
-            if (!inBlob && color.b > 0) {
-                var edges = []
-                var links = []
-                var news = []
+            if (!inBlob && color.b > 0) {   //If pixel is within threshold and not already used, then create a new blob
+                var edges = []  //A selection of links that will be used to find blob radii outside of findBlobsNoRecursion()
+                var links = []  //Points that will make up the new blob
+                var news = []   //Points that haven't been checked yet for new neighboring white pixels
                 
-                news.push(new Link(startX,startY))
-                var iteration=0
+                news.push(new Link(startX,startY))  //Add first pixel to news
+                var iteration=0     //Just for me to see how long it takes for the program to finish the blob
                 
-                while (news.length > 0) {
-                    var len = news.length
+                while (news.length > 0) {   //While there are still pixels whose neighbors are not checked...
+                    var len = news.length   //Number of pixels which, as of now, aren't checked
                     
-                    for (var i = len-1; i > -1; i--) {
-                        var x = news[i].x
+                    for (var i = len-1; i > -1; i--) {  //Loop through current news[] pixels from last to first (won't include pixels added to the array later in the process)
+                        var x = news[i].x   //store location of new pixel to be checked
                         var y = news[i].y
                         
-                        if (y-skipSize > 0 && y+skipSize < image.bitmap.height && x-skipSize > 0 && x+skipSize < image.bitmap.width) {
-                            color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))
-                            if (color.b == 255) {
+                        if (y-skipSize > 0 && y+skipSize < image.bitmap.height && x-skipSize > 0 && x+skipSize < image.bitmap.width) {  //make sure new pixel is not at the edge of the image
+                            color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))   //START: check neighbor above
+                            if (color.b == 255) {   //if neighbor is white
                                 var used = false
-                                for (var j=0; j<news.length && !used; j++) {
-                                    if (news[j].x == x && news[j].y == y-skipSize) {
+                                for (var j=0; j<news.length && !used; j++) {    //loop through new pixels
+                                    if (news[j].x == x && news[j].y == y-skipSize) {    //check if neighbor is already added
                                         used = true
                                         console.log("UP USED new")
                                     }
@@ -337,11 +337,11 @@ function findBlobsNoRecursion(image) {
                                     }
                                 }
                                 if (!used) {
-                                    news.push(new Link(x,y-skipSize))
+                                    news.push(new Link(x,y-skipSize))   //add neighbor to news[]
                                 }
                                 else {
-                                    for (var j=0; j<links.length && !used; j++) {
-                                        if (links[j].x == x && links[j].y == y-skipSize) {
+                                    for (var j=0; j<links.length && !used; j++) {    //loop through saved pixels (already in blob)
+                                        if (links[j].x == x && links[j].y == y-skipSize) {  //check if neighbor is already used
                                             used = true
                                             console.log("UP USED linked")
                                         }
@@ -350,12 +350,14 @@ function findBlobsNoRecursion(image) {
                                         }
                                     }
                                     if (!used) {
-                                        news.push(new Link(x,y-skipSize))
+                                        news.push(new Link(x,y-skipSize))   //add neighbor to news[]
                                     }
                                 }
-                            }
+                            }   //END: check neighbor above
                             
-                            color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))
+                            //NOTE: all of the following neighboring pixel checks should resemble the one above
+                            
+                            color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))   //START: check neighbor below
                             if (color.b == 255) {
                                 var used = false
                                 for (var j=0; j<news.length; j++) {
@@ -384,9 +386,9 @@ function findBlobsNoRecursion(image) {
                                         news.push(new Link(x,y+skipSize))
                                     }
                                 }
-                            }
+                            }   //END: check neighbor below
                             
-                            color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))
+                            color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))   //START: check neighbor left
                             if (color.b == 255) {
                                 var used = false
                                 for (var j=0; j<news.length; j++) {
@@ -415,9 +417,9 @@ function findBlobsNoRecursion(image) {
                                         news.push(new Link(x-skipSize,y))
                                     }
                                 }
-                            }
+                            }   //END: check neighbor left
                             
-                            color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))
+                            color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))   //START: check neighbor right
                             if (color.b == 255) {
                                 var used = false
                                 for (var j=0; j<news.length; j++) {
@@ -447,17 +449,17 @@ function findBlobsNoRecursion(image) {
                                     }
                                 }
                             }
+                        }   //END: check neighbor right
+                        
+                        if (isEdge(image,x,y,1)) {  //check if new pixel is an edge
+                            edges.push(new Link(x,y))   //add new pixel to edges[] (for calculating blob's radii later)
                         }
                         
-                        if (isEdge(image,x,y,1)) {
-                            edges.push(new Link(x,y))
-                        }
-                        
-                        links.push(news[i])
-                        news.splice(i,1)
+                        links.push(news[i]) //add this pixel to the new blob
+                        news.splice(i,1)    //remove this pixel from news[], as it's now checked
                     }
                     
-                    console.log("ITERATION: " + iteration)
+                    console.log("ITERATION: " + iteration)  //prints how long the program has been finding this blob
 //                    for (var k=0; k<news.length; k++) {
 //                        console.log("NEWS[" + k +"] = " + news[k].x + "," + news[k].y)
 //                    }
@@ -467,17 +469,17 @@ function findBlobsNoRecursion(image) {
                     iteration++
                 }
                 
-                if (links.length > 5) {
-                    console.log("...BLOB ADDED @ " + startX + "," + startY)
-                    blobsFound.addBlob(1)
-                    blobsFound.blobs[blobsFound.blobs.length-1].links = links
-                    blobsFound.blobs[blobsFound.blobs.length-1].edges = edges
+                if (links.length > 5) { //only add blob if it's size is somewhat significant
+                    console.log("...BLOB ADDED @ " + startX + "," + startY) //print blob's initial point
+                    blobsFound.addBlob(1)   //add an empty blob (constructor is not currently important)
+                    blobsFound.blobs[blobsFound.blobs.length-1].links = links   //fill blob's links[] array
+                    blobsFound.blobs[blobsFound.blobs.length-1].edges = edges   //fill blob's edges[] array
                 }
             }
         }
     }
     
-    console.log("+: " + pixNums[0] + ", -: " + pixNums[1])
+    console.log("+: " + pixNums[0] + ", -: " + pixNums[1])  //not important
 }
 
 function isEdge(image, x, y, type) {
