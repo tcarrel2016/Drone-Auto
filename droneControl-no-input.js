@@ -30,6 +30,7 @@
     √ Incorporate navdata to help hovering
     √ Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
     • Fix new errors with findBlobsNoRecursion(): out-of-bounds[√], infinitely-large-blob[ ] = problem: pixels that are already links are added as news.
+    √ Look up Hough functions that could possibly find lines and replace findBlobsNoRecursion()
  
 */
 
@@ -327,7 +328,10 @@ function findBlobsNoRecursion(image) {
                             color = jimp.intToRGBA(image.getPixelColor(x,y-skipSize))   //START: check neighbor above
                             if (color.b == 255) {   //if neighbor is white
                                 var used = false
+                                console.log("checking if UP neighbor was used in news[]...")
                                 for (var j=0; j<news.length && !used; j++) {    //loop through new pixels
+                                    console.log("news[" + j + "]: (" + news[j].x + "," + news[j].y + ") =?= (" + x + "," + y-skipSize + ")")
+                                    
                                     if (news[j].x == x && news[j].y == y-skipSize) {    //check if neighbor is already added
                                         used = true
                                         console.log("UP USED new")
@@ -340,7 +344,10 @@ function findBlobsNoRecursion(image) {
                                     news.push(new Link(x,y-skipSize))   //add neighbor to news[]
                                 }
                                 else {
+                                    console.log("checking if UP neighbor was used in links[]...")
                                     for (var j=0; j<links.length && !used; j++) {    //loop through saved pixels (already in blob)
+                                        console.log("links[" + j + "]: (" + links[j].x + "," + links[j].y + ") =?= (" + x + "," + y-skipSize + ")")
+                                        
                                         if (links[j].x == x && links[j].y == y-skipSize) {  //check if neighbor is already used
                                             used = true
                                             console.log("UP USED linked")
@@ -354,8 +361,6 @@ function findBlobsNoRecursion(image) {
                                     }
                                 }
                             }   //END: check neighbor above
-                            
-                            //NOTE: all of the following neighboring pixel checks should resemble the one above
                             
                             color = jimp.intToRGBA(image.getPixelColor(x,y+skipSize))   //START: check neighbor below
                             if (color.b == 255) {
@@ -373,7 +378,10 @@ function findBlobsNoRecursion(image) {
                                     news.push(new Link(x,y+skipSize))
                                 }
                                 else {
+                                    console.log("checking if DOWN neighbor was used in links[]...")
                                     for (var j=0; j<links.length; j++) {
+                                        console.log("links[" + j + "]: (" + links[j].x + "," + links[j].y + ") =?= (" + x + "," + y+skipSize + ")")
+                                        
                                         if (links[j].x == x && links[j].y == y+skipSize) {
                                             used = true
                                             console.log("DOWN USED")
@@ -388,68 +396,68 @@ function findBlobsNoRecursion(image) {
                                 }
                             }   //END: check neighbor below
                             
-                            color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))   //START: check neighbor left
-                            if (color.b == 255) {
-                                var used = false
-                                for (var j=0; j<news.length; j++) {
-                                    if (news[j].x == x-skipSize && news[j].y == y) {
-                                        used = true
-                                        console.log("LEFT USED")
-                                    }
-                                    if (used) {
-                                        break
-                                    }
-                                }
-                                if (!used) {
-                                    news.push(new Link(x-skipSize,y))
-                                }
-                                else {
-                                    for (var j=0; j<links.length; j++) {
-                                        if (links[j].x == x-skipSize && links[j].y == y) {
-                                            used = true
-                                            console.log("LEFT USED")
-                                        }
-                                        if (used) {
-                                            break
-                                        }
-                                    }
-                                    if (!used) {
-                                        news.push(new Link(x-skipSize,y))
-                                    }
-                                }
-                            }   //END: check neighbor left
+//                            color = jimp.intToRGBA(image.getPixelColor(x-skipSize,y))   //START: check neighbor left
+//                            if (color.b == 255) {
+//                                var used = false
+//                                for (var j=0; j<news.length; j++) {
+//                                    if (news[j].x == x-skipSize && news[j].y == y) {
+//                                        used = true
+//                                        console.log("LEFT USED")
+//                                    }
+//                                    if (used) {
+//                                        break
+//                                    }
+//                                }
+//                                if (!used) {
+//                                    news.push(new Link(x-skipSize,y))
+//                                }
+//                                else {
+//                                    for (var j=0; j<links.length; j++) {
+//                                        if (links[j].x == x-skipSize && links[j].y == y) {
+//                                            used = true
+//                                            console.log("LEFT USED")
+//                                        }
+//                                        if (used) {
+//                                            break
+//                                        }
+//                                    }
+//                                    if (!used) {
+//                                        news.push(new Link(x-skipSize,y))
+//                                    }
+//                                }
+//                            }   //END: check neighbor left
                             
-                            color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))   //START: check neighbor right
-                            if (color.b == 255) {
-                                var used = false
-                                for (var j=0; j<news.length; j++) {
-                                    if (news[j].x == x+skipSize && news[j].y == y) {
-                                        used = true
-                                        console.log("RIGHT USED")
-                                    }
-                                    if (used) {
-                                        break
-                                    }
-                                }
-                                if (!used) {
-                                    news.push(new Link(x+skipSize,y))
-                                }
-                                else {
-                                    for (var j=0; j<links.length; j++) {
-                                        if (links[j].x == x+skipSize && links[j].y == y) {
-                                            used = true
-                                            console.log("RIGHT USED")
-                                        }
-                                        if (used) {
-                                            break
-                                        }
-                                    }
-                                    if (!used) {
-                                        news.push(new Link(x+skipSize,y))
-                                    }
-                                }
-                            }
-                        }   //END: check neighbor right
+//                            color = jimp.intToRGBA(image.getPixelColor(x+skipSize,y))   //START: check neighbor right
+//                            if (color.b == 255) {
+//                                var used = false
+//                                for (var j=0; j<news.length; j++) {
+//                                    if (news[j].x == x+skipSize && news[j].y == y) {
+//                                        used = true
+//                                        console.log("RIGHT USED")
+//                                    }
+//                                    if (used) {
+//                                        break
+//                                    }
+//                                }
+//                                if (!used) {
+//                                    news.push(new Link(x+skipSize,y))
+//                                }
+//                                else {
+//                                    for (var j=0; j<links.length; j++) {
+//                                        if (links[j].x == x+skipSize && links[j].y == y) {
+//                                            used = true
+//                                            console.log("RIGHT USED")
+//                                        }
+//                                        if (used) {
+//                                            break
+//                                        }
+//                                    }
+//                                    if (!used) {
+//                                        news.push(new Link(x+skipSize,y))
+//                                    }
+//                                }
+//                            } //END: check neighbor right
+                        }
                         
                         if (isEdge(image,x,y,1)) {  //check if new pixel is an edge
                             edges.push(new Link(x,y))   //add new pixel to edges[] (for calculating blob's radii later)
@@ -474,6 +482,9 @@ function findBlobsNoRecursion(image) {
                     blobsFound.addBlob(1)   //add an empty blob (constructor is not currently important)
                     blobsFound.blobs[blobsFound.blobs.length-1].links = links   //fill blob's links[] array
                     blobsFound.blobs[blobsFound.blobs.length-1].edges = edges   //fill blob's edges[] array
+                }
+                else {
+                    console.log("BLOB TOO SMALL")
                 }
             }
         }
