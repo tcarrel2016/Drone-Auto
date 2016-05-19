@@ -31,7 +31,7 @@
     √ Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
     √ Fix new errors with findBlobsNoRecursion(): out-of-bounds[√], infinitely-large-blob[√] = problem: pixels that are already links are added as news.
     √ Look up Hough functions that could possibly find lines and replace findBlobsNoRecursion()
-    • Fix drone movement: try using altitude data [x] (doesn't work), try not updating line data if no new line is found [x] (doesn't work), don't do any command other than HOVER 2x in a row [ ]
+    • Fix drone movement: try not updating line data if no new line is found [x] (...), don't do any command other than HOVER 2x in a row [x] (...)
  
 */
 
@@ -64,10 +64,8 @@ var pathA = -1
 var erosionFactor = 2
 var count = 0
 var skipSize = 10
-var command = 0     //0,1,2,3,4
-var pCommand = 0    //0,1,2,3,4 = HOVER,UP,RIGHT,DOWN,LEFT
-var delayCounter = 0
-
+var command = [0,0]     //0,1,2,3,4
+var pCommand = [0,0]    //0,1,2,3,4 = HOVER,UP,RIGHT,DOWN,LEFT
 var color1 = [240,172,110]
 var color2 = [240,172,110]
 
@@ -85,17 +83,9 @@ pngStream
 
 client.on("navdata", function(navdata) {
           getMotionData(navdata)
-//          if (pCommand == command) {
-//            delayCounter++
-//          }
-//          else {
-//            delayCounter = 0
-//          }
-//          if (delayCounter > 10) {
-            pCommand = 0
-//          }
           
-          pCommand = command
+          pCommand[0] = command[0]
+          pCommand[1] = command[1]
           controlFlight()
           count++
           })
@@ -130,7 +120,7 @@ function controlFlight() {
             var angleV = math.pi * 1.5
             angleV = pathA - angleV
             
-            if (distance > 320/3) {                                                                                 //CENTER OVER THE PATH OR MOVE FORWARD
+            if (distance > 320/4) {                                                                                 //CENTER OVER THE PATH OR MOVE FORWARD
                 var xV = pathX - (640*0.5)
                 var yV = pathY - (320*0.5)
                 
@@ -141,38 +131,41 @@ function controlFlight() {
                 yV *= 0.03
                 
                 if (xV > 0) {
-                    command = 2
+                    command[0] = 2
                 }
                 else if (xV < 0) {
-                    command = 4
+                    command[0] = 4
                 }
                 if (yV > 0) {
-                    command = 3
+                    command[1] = 3
                 }
                 else if (yV < 0) {
-                    command = 1
+                    command[1] = 1
                 }
                 
-                if (pCommand == 0 || pCommand != command) {
-                    if (command == 1) {
+                if (pCommand[1] == 0 || pCommand[1] != command[1]) {
+                    if (command[1] == 1) {
                         client.front(math.abs(yV))
                         console.log("FRONT")
                     }
-                    else if (command == 2) {
-                        client.right(math.abs(xV))
-                        console.log("RIGHT")
-                    }
-                    else if (command == 3) {
+                    else if (command[1] == 3) {
                         client.back(math.abs(yV))
                         console.log("BACK")
                     }
-                    else if (command == 4) {
+                    
+                }
+                if (pCommand[0] == 0 || pCommand[0] != command[0]) {
+                    if (command[0] == 2) {
+                        client.right(math.abs(xV))
+                        console.log("RIGHT")
+                    }
+                    else if (command[0] == 4) {
                         client.left(math.abs(xV))
                         console.log("LEFT")
                     }
                 }
             }
-            else if (/*(pCommand == 0 || pCommand != command) && */math.abs(angleV) > 0/*(math.pi*0.1)*/) {     //ROTATE
+            if (distance < 320/2 && math.abs(angleV) > 0/*(math.pi*0.1)*/) {     //ROTATE
                 if (math.abs(angleV) < (math.pi*0.5)) {
                     if (angleV > 0) {
                         client.clockwise(0.2)
@@ -187,37 +180,38 @@ function controlFlight() {
                     console.log("PATH IS PERPENDICULAR")
                 }
             }
-            else {  //HOVER
-                if (orientation[0] < origin[0]-4) {
-                    client.right(0.08)
-                }
-                else if (orientation[0] > origin[0]+4) {
-                    client.left(0.08)
-                }
-                if (orientation[1] < origin[1]-4) {
-                    client.back(0.08)
-                }
-                else if (orientation[1] >origin[1]+4) {
-                    client.front(0.08)
-                }
-                command = 0
-                console.log("HOVER")
+            if (distance < 320/3) {  //HOVER
+//                if (orientation[0] < origin[0]-4) {
+//                    client.right(0.08)
+//                }
+//                else if (orientation[0] > origin[0]+4) {
+//                    client.left(0.08)
+//                }
+//                if (orientation[1] < origin[1]-4) {
+//                    client.back(0.08)
+//                }
+//                else if (orientation[1] >origin[1]+4) {
+//                    client.front(0.08)
+//                }
+//                client.front(0.03);
+                command = [0,0]
+                console.log("CONTINUE")
             }
         }
         else {                                                                                                      //HOVER
-            if (orientation[0] < origin[0]-4) {
-                client.right(0.08)
-            }
-            else if (orientation[0] > origin[0]+4) {
-                client.left(0.08)
-            }
-            if (orientation[1] < origin[1]-4) {
-                client.back(0.08)
-            }
-            else if (orientation[1] > origin[1]+4) {
-                client.front(0.08)
-            }
-            command = 0
+//            if (orientation[0] < origin[0]-4) {
+//                client.right(0.08)
+//            }
+//            else if (orientation[0] > origin[0]+4) {
+//                client.left(0.08)
+//            }
+//            if (orientation[1] < origin[1]-4) {
+//                client.back(0.08)
+//            }
+//            else if (orientation[1] > origin[1]+4) {
+//                client.front(0.08)
+//            }
+            command = [0,0]
             console.log("HOVER")
         }
     }
@@ -271,9 +265,7 @@ function processImage(input) {
               
               markBlobs(image)
               
-              //if (count % 2 == 0) {
-                image.write("./droneControlOutput/img_" + count + ".png")
-              //}
+              image.write("./droneControlOutput/img_" + count + ".png")
               
               markerX = marker[0]
               markerY = marker[1]
