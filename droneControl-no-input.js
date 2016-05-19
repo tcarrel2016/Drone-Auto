@@ -31,6 +31,7 @@
     √ Fix the "max call stack size exceeded" error: don't use recursion for finding blobs anymore.
     √ Fix new errors with findBlobsNoRecursion(): out-of-bounds[√], infinitely-large-blob[√] = problem: pixels that are already links are added as news.
     √ Look up Hough functions that could possibly find lines and replace findBlobsNoRecursion()
+    • Fix drone movement: try using altitude data [x] (doesn't work), try not updating line data if no new line is found [x] (doesn't work), don't do any command other than HOVER 2x in a row [ ]
  
 */
 
@@ -49,10 +50,8 @@ var jimp = require('./jimp-master/index.js')
 var math = require('./mathjs-master/index.js')  //Comprehensive math library (used for square root, exponents, absolute value, vector math, etc.)
 
 //Navdata
-var altitude = 0.000
 var orientation = [0.000,0.000,0.000]
 var origin = [0,0,0]
-var velocity = [0.000,0.000,0.000]      //not working
 
 var client = ardrone.createClient()
 var pngImage   //640*360
@@ -65,9 +64,9 @@ var pathA = -1
 var erosionFactor = 2
 var count = 0
 var skipSize = 10
-var previousX = 0
-var previousY = 0
-var previousZ = 0
+var command = 0     //0,1,2,3,4
+var pCommand = 0    //0,1,2,3,4 = HOVER,UP,RIGHT,DOWN,LEFT
+var delayCounter = 0
 
 var color1 = [240,172,110]
 var color2 = [240,172,110]
@@ -86,18 +85,29 @@ pngStream
 
 client.on("navdata", function(navdata) {
           getMotionData(navdata)
+//          if (pCommand == command) {
+//            delayCounter++
+//          }
+//          else {
+//            delayCounter = 0
+//          }
+//          if (delayCounter > 10) {
+            pCommand = 0
+//          }
+          
+          pCommand = command
           controlFlight()
           count++
           })
 
-//if (count < 30) {
-//    client.takeoff()
-//}
+if (count < 30) {
+    client.takeoff()
+}
 
 //.................................................................... DECLARATION
 
 function getMotionData(navdata) {
-    if (count > 20) {
+    if (count > 10) {
         if (count < 30) {
             origin[0] = navdata.demo.rotation.roll
             origin[1] = navdata.demo.rotation.pitch
@@ -107,62 +117,69 @@ function getMotionData(navdata) {
             orientation[0] = navdata.demo.rotation.roll
             orientation[1] = navdata.demo.rotation.pitch
             orientation[2] = navdata.demo.rotation.yaw
-            velocity[0] = navdata.demo.velocity.x
-            velocity[1] = navdata.demo.velocity.y
-            velocity[2] = navdata.demo.velocity.z
-            
-//            console.log("   orientation: " + orientation)
-//            console.log("       velocity: " + velocity)
         }
     }
 }
 
 function controlFlight() {
-    console.log(String(count))
-    
-    if (count < 300) {
+    if (count < 400 && count > 50) {
         client.stop()
         
         if (pathA > -1 && pathX > -1 && pathY > -1) {
             var distance = math.sqrt(math.pow(pathX,2) + math.pow(pathY,2))
             var angleV = math.pi * 1.5
             angleV = pathA - angleV
-
-            if (distance > 360/4) { //CENTER OVER THE PATH OR MOVE FORWARD
+            
+            if (distance > 320/3) {                                                                                 //CENTER OVER THE PATH OR MOVE FORWARD
                 var xV = pathX - (640*0.5)
                 var yV = pathY - (320*0.5)
                 
                 xV /= math.abs(xV)
                 yV /= math.abs(yV)
                 
-                xV *= 0.1
-                yV *= 0.1
+                xV *= 0.03
+                yV *= 0.03
                 
                 if (xV > 0) {
-                    //client.right(xV)
-                    console.log("RIGHT")
+                    command = 2
                 }
-                else {
-                    //client.left(math.abs(xV))
-                    console.log("LEFT")
+                else if (xV < 0) {
+                    command = 4
                 }
                 if (yV > 0) {
-                    //client.back(yV)
-                    console.log("BACK")
+                    command = 3
                 }
-                else {
-                    //client.front(math.abs(yV))
-                    console.log("FRONT")
+                else if (yV < 0) {
+                    command = 1
+                }
+                
+                if (pCommand == 0 || pCommand != command) {
+                    if (command == 1) {
+                        client.front(math.abs(yV))
+                        console.log("FRONT")
+                    }
+                    else if (command == 2) {
+                        client.right(math.abs(xV))
+                        console.log("RIGHT")
+                    }
+                    else if (command == 3) {
+                        client.back(math.abs(yV))
+                        console.log("BACK")
+                    }
+                    else if (command == 4) {
+                        client.left(math.abs(xV))
+                        console.log("LEFT")
+                    }
                 }
             }
-            else if (math.abs(angleV) > (math.pi*0.1)) {     //ROTATE
+            else if (/*(pCommand == 0 || pCommand != command) && */math.abs(angleV) > 0/*(math.pi*0.1)*/) {     //ROTATE
                 if (math.abs(angleV) < (math.pi*0.5)) {
                     if (angleV > 0) {
-                        //client.clockwise(0.2)
+                        client.clockwise(0.2)
                         console.log("CLOCK")
                     }
                     else if (angleV < 0) {
-                        //client.counterClockwise(0.2)
+                        client.counterClockwise(0.2)
                         console.log("COUNTER")
                     }
                 }
@@ -172,40 +189,42 @@ function controlFlight() {
             }
             else {  //HOVER
                 if (orientation[0] < origin[0]-4) {
-                    //client.right(0.1)
+                    client.right(0.08)
                 }
                 else if (orientation[0] > origin[0]+4) {
-                    //client.left(0.1)
+                    client.left(0.08)
                 }
                 if (orientation[1] < origin[1]-4) {
-                    //client.back(0.1)
+                    client.back(0.08)
                 }
                 else if (orientation[1] >origin[1]+4) {
-                    //client.front(0.1)
+                    client.front(0.08)
                 }
+                command = 0
                 console.log("HOVER")
             }
         }
-        else {  //HOVER
+        else {                                                                                                      //HOVER
             if (orientation[0] < origin[0]-4) {
-                //client.right(0.1)
+                client.right(0.08)
             }
             else if (orientation[0] > origin[0]+4) {
-                //client.left(0.1)
+                client.left(0.08)
             }
             if (orientation[1] < origin[1]-4) {
-                //client.back(0.1)
+                client.back(0.08)
             }
             else if (orientation[1] > origin[1]+4) {
-                //client.front(0.1)
+                client.front(0.08)
             }
+            command = 0
             console.log("HOVER")
         }
     }
     else {
-        if ((count > 300 || count == 300) && count < 310) {
-            //client.stop()
-            //client.land()
+        if ((count > 400 || count == 400) && count < 410) {
+            client.stop()
+            client.land()
         }
     }
 }
@@ -242,10 +261,12 @@ function processImage(input) {
                     image.setPixelColor(jimp.rgbaToInt(0,100,255,255),line[0] + math.round(vectorX*i),line[1] + math.round(vectorY*i))
                 }
                 image.setPixelColor(jimp.rgbaToInt(255,255,0,255),line[0] + math.round(vectorX*20),line[1] + math.round(vectorY*20))
-                console.log("path: " + line[2])
+                pathX = line[0]
+                pathY = line[1]
+                pathA = line[2]
               }
               else {
-                console.log("NO LINES")
+                //console.log("NO LINES")
               }
               
               markBlobs(image)
@@ -257,9 +278,6 @@ function processImage(input) {
               markerX = marker[0]
               markerY = marker[1]
               markerR = marker[2]
-              pathX = line[0]
-              pathY = line[1]
-              pathA = line[2]
               })
 }
 
@@ -267,7 +285,7 @@ function thresholdImage(image) {
     for (var y = 0; y < image.bitmap.height - skipSize; y += skipSize) {
         for (var x = 0; x < image.bitmap.width - skipSize; x += skipSize) {
             var color = jimp.intToRGBA(image.getPixelColor(x,y))
-            if (color.r / color.b > (color1[0]/color1[2]) - 0.8 && color.r / color.b < (color1[0]/color1[2]) + 1 && color.r / color.g > (color1[0]/color1[1]) - 0.7 && color.r / color.g < (color1[0]/color1[1]) + 1) {     //ORANGE
+            if (color.r / color.b > (color1[0]/color1[2]) - 0.8 && color.r / color.b < (color1[0]/color1[2]) + 2 && color.r / color.g > (color1[0]/color1[1]) - 0.55 && color.r / color.g < (color1[0]/color1[1]) + 2) {     //~ORANGE
                 image.setPixelColor(jimp.rgbaToInt(255,255,255,255),x,y)
             }
             /*else if (color.r / color.b > (color2[0]/color2[2]) - 0.5 && color.r / color.b < (color2[0]/color2[2]) + 0.5 && color.r / color.g > (color2[0]/color2[1]) - 0.5 && color.r / color.g < (color2[0]/color2[1]) + 0.5) {  //GREEN
