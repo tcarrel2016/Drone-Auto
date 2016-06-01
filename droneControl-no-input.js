@@ -36,11 +36,13 @@
         don't do any command other than HOVER 2x in a row [x], 
         allow drone to do same command twice w/ timer [?],
         have path shoulders which help if the drone is lost [ ]
+        try sending initial navdata-enabling command to see if altitude and velocity data becomes available [ ]
+            > the command is: 
+            > client.config('general:navdata_demo', 'FALSE');
  
 */
 
-//COLOR KEY:
-/*
+/* COLOR KEY:
         WHITE:  line marker
         GRAY:   junction marker
         RED:    radius
